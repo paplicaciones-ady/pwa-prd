@@ -296,6 +296,23 @@ export class ModulePlacementsService {
           owner.position = 999;
           await this.assignmentRepo.save(owner);
         }
+        // empresa -> global: se distribuye a todas las empresas activas (igual que el create global)
+        const activeCompanies = await this.assignmentRepo.manager.find(Company, {
+          select: ['id'],
+          where: { isActive: true },
+        });
+        if (activeCompanies.length > 0) {
+          await this.assignmentRepo.upsert(
+            activeCompanies.map((c) => ({
+              moduleId: id,
+              companyId: c.id,
+              placement: 'fab',
+              position: 999,
+              enabled: true,
+            })),
+            ['moduleId', 'companyId'],
+          );
+        }
       } else if (oldCompanyId && wantsCompanyId && wantsCompanyId !== oldCompanyId) {
         // mueve el módulo a otra empresa dueña
         const existingTarget = existing.find((x) => x.companyId === wantsCompanyId);
@@ -341,6 +358,16 @@ export class ModulePlacementsService {
             }),
           );
         }
+        // global -> empresa: el módulo pasa a ser solo de la empresa dueña;
+        // se eliminan las publicaciones FAB del resto de las empresas (visibilidad
+        // por module_assignments, independiente de permisos).
+        const others = existing.filter((x) => x.companyId !== wantsCompanyId);
+        if (others.length > 0) {
+          await this.assignmentRepo.remove(others);
+        }
+        // global -> empresa: los usuarios de las demás empresas dejan de tener
+        // los permisos del módulo (solo superadmin puede cambiar el alcance).
+        await this.rbacService.revokeModulePermissionsFromCompanies(module.module, wantsCompanyId!);
       }
 
       // companyId es la columna join de la relación company: al estar la relación

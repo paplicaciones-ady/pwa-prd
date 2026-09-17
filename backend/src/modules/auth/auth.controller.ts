@@ -128,6 +128,10 @@ export class AuthController {
   async registerOptions(@CurrentUser() user) {
     const options = await this.passkeyStrategy.getRegistrationOptions(user.sub);
     await this.registerChallenge(user.sub, options.challenge);
+    this.logger.info('auth.passkey.register.options.stored', {
+      userId: user.sub,
+      challengeTtl: CHALLENGE_TTL,
+    });
     return options;
   }
 
@@ -138,14 +142,30 @@ export class AuthController {
     @Body() body: PasskeyRegisterVerifyDto,
   ) {
     if (!body?.response) throw new BadRequestException('Falta el response de WebAuthn');
-    const challenge = await this.consumeRegisterChallenge(user.sub);
-    await this.passkeyStrategy.verifyRegistration(
-      user.sub,
-      body.response as any,
-      challenge,
-      body.deviceName,
-    );
-    return { verified: true };
+    try {
+      const challenge = await this.consumeRegisterChallenge(user.sub);
+      const result = await this.passkeyStrategy.verifyRegistration(
+        user.sub,
+        body.response as any,
+        challenge,
+        body.deviceName,
+      );
+      this.logger.audit('auth.passkey.register.success', {
+        actor: user.sub,
+        meta: { deviceName: body.deviceName ?? null },
+      });
+      return result;
+    } catch (e) {
+      this.logger.audit('auth.passkey.register.failed', {
+        actor: user.sub,
+        meta: {
+          deviceName: body.deviceName ?? null,
+          reason: (e as any)?.message,
+          name: (e as any)?.name,
+        },
+      });
+      throw e;
+    }
   }
 
   // --- Passkeys: chequeo (público, throttled para limitar user enumeration) ---

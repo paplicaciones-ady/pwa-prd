@@ -1,6 +1,6 @@
 import { Injectable, Inject, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository, IsNull } from 'typeorm';
+import { EntityManager, Repository, In, IsNull, Not } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Profile } from './entities/profile.entity';
 import { Permission } from './entities/permission.entity';
@@ -260,5 +260,45 @@ export class RbacService {
 
   findAllPermissions() {
     return this.permissionRepo.find({ order: { code: 'ASC' } });
+  }
+
+  /**
+   * Revoca los permisos `resource.*` de los perfiles de TODAS las empresas
+   * excepto `exceptCompanyId`. Usado al convertir un módulo global a empresa
+   * propia, para que los usuarios de las demás empresas pierdan los permisos
+   * del módulo (sin tocar los de la empresa dueña).
+   *
+   * NO borra las permisiones del catálogo (`permissions`): el módulo de la
+   * empresa dueña las sigue usando. Tampoco toca perfiles de sistema
+   * (`company_id NULL`: plantillas admin/vendedor y super_admin). Invalida la
+   * caché RBAC de los usuarios afectados.
+   */
+  async revokeModulePermissionsFromCompanies(
+    resource: string,
+    exceptCompanyId: string,
+  ): Promise<void> {
+    const permissions = await this.permissionRepo.find({ where: { resource } });
+    if (permissions.length === 0) return;
+    const permissionIds = permissions.map((p) => p.id);
+
+    // `Not(except)` excluye en SQL los company_id NULL (plantillas/superadmin);
+    // el filtro extra descarta cualquier fila NULL que quedara.
+    const profiles = (await this.profileRepo.find({ where: { companyId: Not(exceptCompanyId) } }))
+      .filter((p) => p.companyId !== null && p.companyId !== exceptCompanyId);
+    if (profiles.length === 0) return;
+
+    const affectedIds = profiles.map((p) => p.id);
+    const result = await this.profilePermRepo.delete({
+      profileId: In(affectedIds),
+      permissionId: In(permissionIds),
+    });
+
+    for (const profileId of affectedIds) {
+      await this.invalidateProfileCache(profileId);
+    }
+
+    this.logger.audit('rbac.module.permissions.revoked', {
+      meta: { resource, exceptCompanyId, deleted: result.affected ?? 0 },
+    });
   }
 }

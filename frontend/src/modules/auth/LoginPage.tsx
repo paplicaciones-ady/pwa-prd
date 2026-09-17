@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { httpClient } from '../../shared/api/httpClient';
@@ -13,6 +13,13 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { refreshBootstrap, resetModuleContexts } = useAuth();
 
+  // Guards contra disparos duplicados (React.StrictMode en dev monta el efecto
+  // dos veces): sin esto se piden dos challenges y el segundo pisa al primero
+  // en Redis, haciendo que la firma del dispositivo no coincida → login falla.
+  const autoScheduledRef = useRef(false);
+  const passkeyInFlightRef = useRef(false);
+  const autoTimerRef = useRef<number | null>(null);
+
   // Verificar passkey automáticamente al cargar si hay email guardado
   useEffect(() => {
     const savedEmail = localStorage.getItem('lastEmail');
@@ -22,6 +29,12 @@ export function LoginPage() {
     } else {
       setUiMode('form');
     }
+    return () => {
+      if (autoTimerRef.current !== null) {
+        clearTimeout(autoTimerRef.current);
+        autoTimerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -30,10 +43,15 @@ export function LoginPage() {
       const res = await httpClient.post('/auth/passkeys/check', { email: emailToCheck });
       if (res.data?.hasPasskeys) {
         setUiMode('has-passkey');
-        // Intento automático tras un pequeño delay para que el usuario vea la UI
-        setTimeout(() => {
-          handlePasskeyAuto(emailToCheck);
-        }, 600);
+        // Intento automático tras un pequeño delay para que el usuario vea la UI.
+        // Solo se agenda una vez por carga (aunque StrictMode repita el effect).
+        if (!autoScheduledRef.current) {
+          autoScheduledRef.current = true;
+          autoTimerRef.current = window.setTimeout(() => {
+            autoTimerRef.current = null;
+            handlePasskeyAuto(emailToCheck);
+          }, 600);
+        }
       } else {
         setUiMode('form');
       }
@@ -64,6 +82,10 @@ export function LoginPage() {
   };
 
   const handlePasskeyAuto = async (emailToUse: string) => {
+    // Evita que el intento automático y el botón manual corran a la vez y
+    // generen dos challenges (el segundo invalidaría la firma del primero).
+    if (passkeyInFlightRef.current) return;
+    passkeyInFlightRef.current = true;
     setBusy(true);
     setError('');
     try {
@@ -78,10 +100,11 @@ export function LoginPage() {
         // El usuario canceló el prompt biométrico: volvemos al formulario
         setUiMode('form');
       } else {
-        setError(err?.response?.data?.message?.message || 'No se pudo iniciar sesión con passkey');
+        setError(err?.response?.data?.message?.message || err?.message || 'No se pudo iniciar sesión con passkey');
         setUiMode('form');
       }
     } finally {
+      passkeyInFlightRef.current = false;
       setBusy(false);
     }
   };

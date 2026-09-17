@@ -46,6 +46,10 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 5173,
+      // Acceso vía ngrok (túneles https). Se permite el sufijo entero
+      // .ngrok-free.dev porque el subdominio aleatorio cambia en cada
+      // reinicio del túnel; el puerto solo se expone a loopback/localhost.
+      allowedHosts: ['.ngrok-free.dev'],
       proxy: {
         '/api': {
           target: env.VITE_PROXY_TARGET || 'http://localhost:8000',

@@ -12,6 +12,7 @@ import { Device } from '../entities/device.entity';
 import { User } from '../../users/entities/user.entity';
 import { AuthStrategy, AuthResult } from '../interfaces/auth-strategy.interface';
 import { SUPER_ADMIN_PROFILE_ID } from '../../../commons/constants';
+import { StructuredLogger } from '../../../commons/logger/structured-logger.service';
 
 @Injectable()
 export class PasskeyAuthStrategy implements AuthStrategy {
@@ -19,11 +20,18 @@ export class PasskeyAuthStrategy implements AuthStrategy {
     @InjectRepository(Device) private deviceRepo: Repository<Device>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private config: ConfigService,
+    private logger: StructuredLogger,
   ) {}
 
   async getRegistrationOptions(userId: string) {
     const user = await this.userRepo.findOneByOrFail({ id: userId });
     const existingDevices = await this.deviceRepo.find({ where: { userId } });
+
+    this.logger.info('auth.passkey.register.options', {
+      userId,
+      rpID: this.config.get('WEBAUTHN_RP_ID'),
+      deviceCount: existingDevices.length,
+    });
 
     return generateRegistrationOptions({
       rpName: this.config.get('WEBAUTHN_RP_NAME')!,
@@ -43,6 +51,12 @@ export class PasskeyAuthStrategy implements AuthStrategy {
     expectedChallenge: string,
     deviceName?: string,
   ) {
+    this.logger.info('auth.passkey.register.verify.start', {
+      userId,
+      deviceName,
+      responseType: { type: response?.type, id: typeof response?.id === 'string' ? response.id.slice(-8) : null },
+    });
+
     const verification = await verifyRegistrationResponse({
       response,
       expectedChallenge,
@@ -51,10 +65,18 @@ export class PasskeyAuthStrategy implements AuthStrategy {
     });
 
     if (!verification.verified || !verification.registrationInfo) {
+      this.logger.error('auth.passkey.register.verify.failed', {
+        userId,
+        verified: verification.verified,
+        hasInfo: !!verification.registrationInfo,
+        error: (verification as any)?.error ?? null,
+        origin: this.config.get('WEBAUTHN_ORIGIN'),
+        rpID: this.config.get('WEBAUTHN_RP_ID'),
+      });
       throw new UnauthorizedException('No se pudo verificar el registro del dispositivo');
     }
 
-    const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
+    const { credentialID, credentialPublicKey, counter, aaguid } = verification.registrationInfo;
 
     await this.deviceRepo.save(
       this.deviceRepo.create({
@@ -66,6 +88,14 @@ export class PasskeyAuthStrategy implements AuthStrategy {
         deviceName: deviceName ? deviceName.slice(0, 120) : null,
       }),
     );
+
+    this.logger.info('auth.passkey.register.verify.ok', {
+      userId,
+      credentialId: typeof credentialID === 'string' ? credentialID.slice(-8) : null,
+      aaguid,
+      counter,
+      deviceName: deviceName ? deviceName.slice(0, 120) : null,
+    });
 
     return { verified: true };
   }

@@ -37,7 +37,24 @@ export function ProfilePage() {
     try {
       const optionsRes = await httpClient.post('/auth/passkeys/register/options', {});
       const options = optionsRes.data;
+      console.info('[passkey:register] options recibidas', {
+        challenge: options?.challenge?.slice(-8),
+        rp: { name: options?.rp?.name, id: options?.rp?.id },
+        user: { name: options?.user?.name },
+        origin: window.location.origin,
+      });
+      if (!window.location.origin.includes(options?.rp?.id)) {
+        console.warn('[passkey:register] MISMATCH rpID/origen', {
+          origin: window.location.origin,
+          rpId: options?.rp?.id,
+        });
+      }
       const credential = await startRegistration(options);
+      console.info('[passkey:register] credential obtenida', {
+        id: credential?.id?.slice(-8),
+        type: credential?.type,
+        transports: credential?.response?.transports,
+      });
       await httpClient.post('/auth/passkeys/register/verify', {
         response: credential,
         deviceName: deviceName || 'Dispositivo principal',
@@ -46,10 +63,19 @@ export function ProfilePage() {
       setDeviceName('');
       loadDevices();
     } catch (err: any) {
+      console.error('[passkey:register] fallo', {
+        name: err?.name,
+        message: err?.message,
+        code: err?.code,
+        server: err?.response?.data,
+        stack: err?.stack,
+      });
       if (err?.name === 'NotAllowedError') {
         setError('Se canceló el registro del dispositivo.');
       } else {
-        setError(err?.response?.data?.message?.message || 'No se pudo registrar el dispositivo');
+        const serverMsg = err?.response?.data?.message;
+        const detail = typeof serverMsg === 'object' && serverMsg !== null ? serverMsg?.message : serverMsg;
+        setError(detail || err?.message || 'No se pudo registrar el dispositivo');
       }
     } finally {
       setBusy(false);
