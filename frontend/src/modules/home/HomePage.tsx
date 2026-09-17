@@ -68,8 +68,10 @@ function genericIcon() {
   );
 }
 
+const SUPER_ADMIN_PROFILE_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
+
 export function HomePage() {
-  const { bootstrap, moduleContexts, loadModuleContext, enterCompany } = useAuth();
+  const { bootstrap, moduleContexts, loadModuleContext, enterCompany, exitCompany } = useAuth();
   const navigate = useNavigate();
   const placements = bootstrap?.modulePlacements || [];
   const flags = bootstrap?.featureFlags || {};
@@ -180,6 +182,37 @@ export function HomePage() {
             <span className="org-dot" />
             {company} · Gestión Comercial
           </div>
+          {bootstrap?.user.profileId === SUPER_ADMIN_PROFILE_ID && (
+            <button
+              type="button"
+              onClick={async () => {
+                await exitCompany();
+                navigate('/home');
+              }}
+              style={{
+                marginLeft: 'auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(255,255,255,0.95)',
+                border: 'none',
+                borderRadius: 999,
+                padding: '7px 12px',
+                fontFamily: 'var(--display)',
+                fontWeight: 700,
+                fontSize: 12,
+                color: 'var(--ink)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 6px 14px -8px rgba(0,0,0,0.4)',
+              }}
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" style={{ flex: 'none', color: 'var(--accent)' }}>
+                <path d="M7 2.5 1.5 8 7 13.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Volver a empresas
+            </button>
+          )}
         </div>
         <div className="greet">
           <div className="welcome">

@@ -466,8 +466,14 @@ input, select, textarea {
   display: grid;
   place-items: center;
   margin: 0 auto 8px;
+  overflow: hidden;
 }
 .tile .ic svg { width: 23px; height: 23px; color: var(--accent); }
+.tile-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 .tile span {
   font-size: 11px;
   font-weight: 700;

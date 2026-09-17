@@ -4,14 +4,6 @@ import { useAuth } from '../auth/AuthContext';
 import { httpClient } from '../../shared/api/httpClient';
 import { ModulesManagement } from './ModulesManagement';
 
-interface UserItem {
-  id: string;
-  fullName: string;
-  email: string;
-  status: string;
-  profileId: string;
-}
-
 interface FlagItem {
   id: string;
   key: string;
@@ -20,7 +12,6 @@ interface FlagItem {
 
 const TABS = [
   { id: 'company', label: 'Mi empresa' },
-  { id: 'users', label: 'Usuarios' },
   { id: 'flags', label: 'Feature Flags' },
   { id: 'modules', label: 'Módulos' },
 ];
@@ -37,7 +28,6 @@ export function ConfigPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const [users, setUsers] = useState<UserItem[]>([]);
   const [flags, setFlags] = useState<FlagItem[]>([]);
   const [newFlagKey, setNewFlagKey] = useState('');
 
@@ -54,16 +44,8 @@ export function ConfigPage() {
   }, [bootstrap]);
 
   useEffect(() => {
-    if (tab === 'users') loadUsers();
-  }, [tab]);
-
-  useEffect(() => {
     if (tab === 'flags') loadFlags();
   }, [tab]);
-
-  const loadUsers = () => {
-    httpClient.get('/users').then((res) => setUsers(res.data?.[0] || [])).catch(() => setUsers([]));
-  };
 
   const loadFlags = () => {
     httpClient.get('/feature-flags').then((res) => setFlags(res.data || [])).catch(() => setFlags([]));
@@ -189,25 +171,6 @@ export function ConfigPage() {
                 Guardar
               </button>
             )}
-          </div>
-        )}
-
-        {tab === 'users' && (
-          <div>
-            <div className="info-card" style={{ padding: '6px 0' }}>
-              {users.length === 0 && <p className="empty-state">No hay usuarios</p>}
-              {users.map((u) => (
-                <div key={u.id} className="info-row" style={{ padding: '10px 16px' }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{u.fullName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--faint)' }}>{u.email}</div>
-                  </div>
-                  <span style={{ fontSize: 11, background: u.status === 'active' ? 'var(--green-soft)' : '#fdecea', color: u.status === 'active' ? 'var(--green-deep)' : '#b00020', padding: '2px 8px', borderRadius: 99, fontWeight: 700 }}>
-                    {u.status}
-                  </span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
