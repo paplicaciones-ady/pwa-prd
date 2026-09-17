@@ -66,9 +66,20 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:3000:3000"
+    # SIN volumen anónimo de node_modules: el contenedor usa directamente el
+    # node_modules del host vía el bind mount ./backend:/app. Así un rebuild
+    # de imagen NUNCA deja un volume stale con dependencias viejas (el error
+    # 'Cannot find module prom-client' venía de un anonymous volume que
+    # cacheaba el node_modules de la imagen anterior y sombreaba al host).
+    # Importante: el target `development` del Dockerfile usa node:20
+    # (Debian/glibc), igual que el host WSL — los módulos nativos del host
+    # (bcrypt) cargan sin segfault (bajo alpine/musl un .node glibc crashea
+    # con exit 139 al ejecutar bcrypt.compare). Prod sigue en alpine con su
+    # propio node_modules dentro de la imagen.
+    # Al añadir una dep nueva: corre `bun install`/`npm ci` en el host
+    # y luego el rebuild. Nada de --renew-anon-volumes.
     volumes:
       - ./backend:/app
-      - /app/node_modules
     # node corre de serie como usuario no-root en la imagen; sin capabilities
     # adicionales en dev+prod.
     cap_drop: [ALL]
@@ -85,9 +96,13 @@ services:
       VITE_PROXY_TARGET: http://kong:8000
     ports:
       - "127.0.0.1:5173:5173"
+    # SIN volumen anónimo de node_modules (mismo criterio que backend): el dev
+    # usa node:20 Debian/glibc (mismo libc que WSL), así el node_modules del
+    # host (incluido esbuild linux-x64) funciona directo. Sin volumen stale el
+    # rebuild no puede dejar dependencias desactualizadas.
+    # Al añadir una dep nueva: `bun install`/`npm install` en frontend/ y rebuild.
     volumes:
       - ./frontend:/app
-      - /app/node_modules
     depends_on:
       kong:
         condition: service_healthy
