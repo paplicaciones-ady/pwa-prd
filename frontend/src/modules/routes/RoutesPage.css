@@ -1,0 +1,280 @@
+.routes-body {
+  padding-bottom: 90px;
+}
+
+.routes-page {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.routes-kpi {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 11px;
+  margin-bottom: 18px;
+}
+
+.routes-kpi-card {
+  background: var(--white);
+  border: 1.4px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.routes-kpi-card.span-2 {
+  grid-column: span 2;
+}
+
+.routes-kpi-card b {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.routes-kpi-card span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.routes-segmented {
+  display: flex;
+  background: var(--white);
+  border: 1.4px solid var(--line);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 18px;
+}
+
+.routes-segmented button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.routes-segmented button.on {
+  background: var(--accent);
+  color: var(--white);
+}
+
+.routes-resume {
+  background: var(--white);
+  border: 1.4px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 22px;
+}
+
+.routes-bar-row {
+  margin-bottom: 14px;
+}
+
+.routes-bar-row:last-child {
+  margin-bottom: 0;
+}
+
+.routes-bar-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.routes-bar-label span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.routes-bar-label b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.routes-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.routes-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+}
+
+.routes-fab {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: 0;
+  background: var(--accent);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font: inherit;
+  box-shadow: 0 12px 22px -10px rgba(var(--accent-rgb), 0.55);
+}
+
+.routes-detail-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-bottom: 90px;
+}
+
+.routes-tabs {
+  display: flex;
+  gap: 20px;
+  border-bottom: 2px solid var(--line);
+  margin-bottom: 18px;
+}
+
+.routes-tabs button {
+  padding: 10px 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  margin-bottom: -2px;
+}
+
+.routes-tabs button.on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.routes-clients {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.routes-client-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--white);
+  border: 1.4px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.routes-client-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.routes-client-address {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.routes-toggle {
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--line);
+  border: 0;
+  padding: 3px;
+  cursor: pointer;
+  position: relative;
+  transition: 0.2s;
+  flex: none;
+}
+
+.routes-toggle span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+  transform: translateX(0);
+  transition: 0.2s;
+}
+
+.routes-toggle.on {
+  background: var(--green);
+}
+
+.routes-toggle.on span {
+  transform: translateX(20px);
+}
+
+.routes-map-wrap {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1.4px solid var(--line);
+  flex: 1;
+  min-height: 350px;
+  background: var(--line);
+}
+
+.route-map {
+  width: 100%;
+  height: 100%;
+}
+
+.routes-map-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  z-index: 500;
+}
+
+/* Leaflet custom markers */
+.route-marker-current,
+.route-marker-client {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid var(--white);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.route-marker-current {
+  background: var(--accent);
+  animation: pulse 1.6s infinite;
+}
+
+.route-marker-client {
+  background: #1565C0;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(21, 101, 192, 0.55); }
+  70% { box-shadow: 0 0 0 10px rgba(21, 101, 192, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(21, 101, 192, 0); }
+}

@@ -1,0 +1,111 @@
+.portfolio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.portfolio-sort-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.portfolio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--white);
+  border: 1.4px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+.portfolio-chip svg {
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+
+.portfolio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portfolio-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--white);
+  border: 1.4px solid var(--line);
+  border-radius: 16px;
+  padding: 13px 14px;
+}
+
+.portfolio-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.portfolio-avatar svg {
+  width: 24px;
+  height: 24px;
+}
+
+.portfolio-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.portfolio-name {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.portfolio-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.portfolio-battery {
+  width: 26px;
+  height: 40px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2px;
+  flex: none;
+}
+
+.pb-bar {
+  width: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  transition: 0.2s;
+}
+
+.pb-bar:nth-child(1) { height: 8px; }
+.pb-bar:nth-child(2) { height: 14px; }
+.pb-bar:nth-child(3) { height: 20px; }
+.pb-bar:nth-child(4) { height: 26px; }
+.pb-bar:nth-child(5) { height: 32px; }
+
+.portfolio-battery.red .pb-bar.on { background: #E11225; }
+.portfolio-battery.yellow .pb-bar.on { background: var(--yellow, #f2ba2a); }
+.portfolio-battery.green .pb-bar.on { background: var(--green, #3e9b61); }

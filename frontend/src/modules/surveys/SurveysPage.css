@@ -1,0 +1,61 @@
+.survey-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.survey-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--white);
+  border: 1.4px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  transition: 0.15s;
+  font: inherit;
+}
+
+.survey-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 10px 18px -12px rgba(var(--accent-rgb), 0.25);
+}
+
+.survey-card:active {
+  transform: scale(0.995);
+}
+
+.survey-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.survey-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.survey-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.survey-chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--faint);
+  flex: none;
+}

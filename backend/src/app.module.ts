@@ -18,6 +18,15 @@ import { CalculatorModule } from './modules/calculator/calculator.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { PromosModule } from './modules/promos/promos.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { PortfolioModule } from './modules/portfolio/portfolio.module';
+import { DiscountsModule } from './modules/discounts/discounts.module';
+import { SurveysModule } from './modules/surveys/surveys.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { ComplaintsModule } from './modules/complaints/complaints.module';
+import { PricesModule } from './modules/prices/prices.module';
+import { NewProductsModule } from './modules/new-products/new-products.module';
+import { RoutesModule } from './modules/routes/routes.module';
+import { BrainModule } from './modules/brain/brain.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { MetricsMiddleware } from './modules/metrics/metrics.middleware';
 import { CsrfMiddleware } from './commons/middlewares/csrf.middleware';
@@ -84,6 +93,15 @@ import { CorrelationIdMiddleware } from './commons/middlewares/correlation-id.mi
     CatalogModule,
     PromosModule,
     ReportsModule,
+    PortfolioModule,
+    DiscountsModule,
+    SurveysModule,
+    ExpensesModule,
+    ComplaintsModule,
+    PricesModule,
+    NewProductsModule,
+    RoutesModule,
+    BrainModule,
     HealthModule,
     MetricsModule,
   ],

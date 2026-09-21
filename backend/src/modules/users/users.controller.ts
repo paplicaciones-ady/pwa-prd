@@ -18,6 +18,12 @@ export class UsersController {
     private rbacService: RbacService,
   ) {}
 
+  @Get('context')
+  async getContext(@CurrentUser() user, @CurrentTenant() companyId: string) {
+    const permissions = await this.rbacService.getPermissionsByPrefix(user.sub, companyId, 'users');
+    return { permissions, featureFlags: {} };
+  }
+
   @Get('profiles')
   @Permissions('users.read')
   findProfiles(@CurrentTenant() companyId: string) {
