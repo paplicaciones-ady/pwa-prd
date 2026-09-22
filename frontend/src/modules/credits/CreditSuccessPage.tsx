@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import { CreditStepper } from '../../shared/components/CreditStepper';
 import { httpClient } from '../../shared/api/httpClient';
+import { useTheme } from '../../shared/theme/ThemeContext';
 
 interface SuccessCredit {
   id: string;
@@ -13,7 +13,7 @@ interface SuccessCredit {
 
 export function CreditSuccessPage() {
   const { id } = useParams<{ id: string }>();
-  const { bootstrap } = useAuth();
+  const theme = useTheme();
   const navigate = useNavigate();
   const [credit, setCredit] = useState<SuccessCredit | null>(null);
   const [error, setError] = useState('');
@@ -50,8 +50,8 @@ export function CreditSuccessPage() {
       <div className="okhero">
         <div className="hrow" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontWeight: 800, fontSize: 12 }}>{disbursed ? '¡Desembolso exitoso!' : '¡Firma exitosa!'}</span>
-          {bootstrap?.company?.theme.logoUrl && (
-            <img className="alogo" src={bootstrap.company.theme.logoUrl} alt="logo" style={{ height: 26, filter: 'brightness(0) invert(1)' }} />
+          {theme.logoUrl && (
+            <img className="alogo" src={theme.logoUrl} alt="logo" style={{ height: 26, filter: 'brightness(0) invert(1)' }} />
           )}
         </div>
         <div className="badge">

@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import { AppBar } from '../../shared/components/AppBar';
+import { useTheme } from '../../shared/theme/ThemeContext';
 
 export function CreditsHomePage() {
   const navigate = useNavigate();
-  const { bootstrap } = useAuth();
-  const logo = bootstrap?.company?.theme.logoUrl || undefined;
+  const theme = useTheme();
+  const logo = theme.logoUrl || undefined;
 
   return (
     <div className="s2 flow credit-shell">

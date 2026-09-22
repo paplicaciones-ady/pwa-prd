@@ -1,8 +1,10 @@
 import { useAuth } from '../../modules/auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 
 export function Header() {
   const { bootstrap, logout } = useAuth();
+  const theme = useTheme();
   const navigate = useNavigate();
   const companyName = bootstrap?.company?.name || 'PWA App';
 
@@ -10,8 +12,8 @@ export function Header() {
     <nav className="navbar">
       <div className="navbar-inner">
         <a className="brand company-brand" onClick={() => navigate('/home')} style={{ cursor: 'pointer' }}>
-          {bootstrap?.company?.theme.logoUrl ? (
-            <img src={bootstrap.company.theme.logoUrl} alt="logo" className="brand-logo" />
+          {theme.logoUrl ? (
+            <img src={theme.logoUrl} alt="logo" className="brand-logo" />
           ) : (
             <span style={{ fontSize: 18, fontWeight: 700 }}>{companyName.charAt(0)}</span>
           )}

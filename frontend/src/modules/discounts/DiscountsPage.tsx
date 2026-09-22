@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Can } from '../../shared/components/Can';
-import { formatCOP, productImage } from '../../shared/lib/format';
+import { formatCOP, productImage } from '../../shared/utils/format';
 import './DiscountsPage.css';
 
 // ── DATOS MOCK ──

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { productImage } from '../../shared/lib/format';
+import { productImage } from '../../shared/utils/format';
 import './ComplaintsPage.css';
 
 // ── DATOS MOCK ──

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatCOP } from '../../shared/lib/format';
+import { formatCOP } from '../../shared/utils/format';
 import './BrainPage.css';
 
 // ── DATOS MOCK ──

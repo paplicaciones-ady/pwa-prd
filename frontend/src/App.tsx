@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './modules/auth/AuthContext';
+import { ThemeProvider } from './shared/theme/ThemeContext';
 import { LoginPage } from './modules/auth/LoginPage';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 import { RequirePerm } from './shared/components/RequirePerm';
@@ -48,7 +49,8 @@ export function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
+        <ThemeProvider>
+          <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -231,6 +233,7 @@ export function App() {
           {/* 404 real: antes redirigía silenciosamente a /home */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </ThemeProvider>
       </BrowserRouter>
     </AuthProvider>
   );

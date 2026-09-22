@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../modules/auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 
 const ICONS: Record<string, React.ReactNode> = {
   cliente: (
@@ -69,6 +70,7 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
 
 export function Sidebar() {
   const { bootstrap, moduleContexts, logout, isSuperAccount } = useAuth();
+  const theme = useTheme();
   const navigate = useNavigate();
   const companyName = bootstrap?.company?.name || 'PWA App';
   const placements = bootstrap?.modulePlacements || [];
@@ -100,8 +102,8 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="side-brand" onClick={() => navigate('/home')}>
-        {bootstrap?.company?.theme.logoUrl ? (
-          <img src={bootstrap.company.theme.logoUrl} alt="logo" className="side-logo" />
+        {theme.logoUrl ? (
+          <img src={theme.logoUrl} alt="logo" className="side-logo" />
         ) : (
           <span className="side-letter">{companyName.charAt(0)}</span>
         )}

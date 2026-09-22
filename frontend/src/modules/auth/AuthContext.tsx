@@ -14,6 +14,10 @@ export interface ModulePlacement {
   logoUrl: string | null;
   icon: string | null;
   enabled: boolean;
+  /** Empresa dueña del módulo (null = módulo global). */
+  companyId: string | null;
+  /** Tema de la empresa dueña del módulo (null para módulos globales). */
+  theme: { primaryColor: string; logoUrl: string | null } | null;
   /** Variante por empresa: configuración libre que adapta el comportamiento del módulo. */
   config?: Record<string, unknown>;
   /** Operaciones activas del módulo en esta empresa ([] = todas). */
@@ -94,32 +98,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function hexToRgb(hex: string): string | null {
-  const m = hex.replace('#', '');
-  if (m.length !== 6) return null;
-  const int = parseInt(m, 16);
-  return `${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}`;
-}
-
-function shade(color: string, factor: number): string {
-  const m = color.replace('#', '');
-  if (m.length !== 6) return color;
-  const int = parseInt(m, 16);
-  let r = (int >> 16) & 255;
-  let g = (int >> 8) & 255;
-  let b = int & 255;
-  if (factor >= 0) {
-    r = Math.round(r + (255 - r) * factor);
-    g = Math.round(g + (255 - g) * factor);
-    b = Math.round(b + (255 - b) * factor);
-  } else {
-    r = Math.round(r * (1 + factor));
-    g = Math.round(g * (1 + factor));
-    b = Math.round(b * (1 + factor));
-  }
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
   const [moduleContexts, setModuleContexts] = useState<Record<string, ModuleContext>>({});
@@ -132,16 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setBootstrap(null))
       .finally(() => setIsLoading(false));
   }, []);
-
-  useEffect(() => {
-    const primaryColor = bootstrap?.company?.theme.primaryColor || '#0057B8';
-    const root = document.documentElement;
-    root.style.setProperty('--accent', primaryColor);
-    const rgb = hexToRgb(primaryColor) || '0, 87, 184';
-    root.style.setProperty('--accent-rgb', rgb);
-    root.style.setProperty('--accent-deep', shade(primaryColor, -0.35));
-    root.style.setProperty('--accent-soft', shade(primaryColor, 0.9));
-  }, [bootstrap]);
 
   const loadModuleContext = async (moduleName: string) => {
     if (moduleContexts[moduleName]) return;

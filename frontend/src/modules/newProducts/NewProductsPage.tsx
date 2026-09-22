@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { formatCOP, productImage } from '../../shared/lib/format';
+import { formatCOP, productImage } from '../../shared/utils/format';
 import './NewProductsPage.css';
 
 // ── DATOS MOCK ──

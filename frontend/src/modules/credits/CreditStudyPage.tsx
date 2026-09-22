@@ -5,6 +5,7 @@ import { AppBar } from '../../shared/components/AppBar';
 import { CreditStepper } from '../../shared/components/CreditStepper';
 import { Modal } from '../../shared/components/Modal';
 import { httpClient } from '../../shared/api/httpClient';
+import { useTheme } from '../../shared/theme/ThemeContext';
 
 interface ClientLookup {
   id: string;
@@ -18,7 +19,8 @@ interface ClientLookup {
 
 export function CreditStudyPage() {
   const navigate = useNavigate();
-  const { bootstrap, moduleContexts } = useAuth();
+  const { moduleContexts } = useAuth();
+  const theme = useTheme();
   const [nit, setNit] = useState('');
   const [results, setResults] = useState<ClientLookup[]>([]);
   const [client, setClient] = useState<ClientLookup | null>(null);
@@ -111,7 +113,7 @@ export function CreditStudyPage() {
     }
   };
 
-  const logo = bootstrap?.company?.theme.logoUrl || undefined;
+  const logo = theme.logoUrl || undefined;
   const clientReady = !!client && consentData;
 
   return (

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import { AppBar } from '../../shared/components/AppBar';
 import { CreditStepper } from '../../shared/components/CreditStepper';
 import { httpClient } from '../../shared/api/httpClient';
+import { useTheme } from '../../shared/theme/ThemeContext';
 
 interface CreditDetail {
   id: string;
@@ -30,7 +30,7 @@ interface StudyResultState {
 
 export function CreditResultPage() {
   const { id } = useParams<{ id: string }>();
-  const { bootstrap } = useAuth();
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const studyResult = (location.state as StudyResultState | null) ?? null;
@@ -67,7 +67,7 @@ export function CreditResultPage() {
   if (error && !credit) {
     return (
       <div className="s2 credit-shell">
-        <AppBar title="Resultado del crédito" subtitle="Paso 2 de 4" logo={bootstrap?.company?.theme.logoUrl || undefined} />
+        <AppBar title="Resultado del crédito" subtitle="Paso 2 de 4" logo={theme.logoUrl || undefined} />
         <div className="body" style={{ paddingBottom: 24 }}>
           <div className="card" style={{ borderColor: '#f6caca', background: '#fdecec', color: '#c62828', fontSize: 12, fontWeight: 600 }}>
             {error}
@@ -80,7 +80,7 @@ export function CreditResultPage() {
   if (!credit) {
     return (
       <div className="s2 credit-shell">
-        <AppBar title="Resultado del crédito" subtitle="Paso 2 de 4" logo={bootstrap?.company?.theme.logoUrl || undefined} />
+        <AppBar title="Resultado del crédito" subtitle="Paso 2 de 4" logo={theme.logoUrl || undefined} />
         <div className="body" style={{ color: 'var(--muted)', fontSize: 13 }}>Cargando…</div>
       </div>
     );
@@ -92,7 +92,7 @@ export function CreditResultPage() {
 
   return (
     <div className="s2 credit-shell">
-      <AppBar title="Resultado del crédito" subtitle={clientName} logo={bootstrap?.company?.theme.logoUrl || undefined} />
+      <AppBar title="Resultado del crédito" subtitle={clientName} logo={theme.logoUrl || undefined} />
       <div className="body" style={{ paddingBottom: 24 }}>
         <CreditStepper current={2} />
 

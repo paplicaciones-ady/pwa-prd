@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import { AppBar } from '../../shared/components/AppBar';
 import { httpClient } from '../../shared/api/httpClient';
+import { useTheme } from '../../shared/theme/ThemeContext';
 
 interface PortfolioCredit {
   id: string;
@@ -23,8 +23,8 @@ const STATUS_LABEL: Record<string, { text: string; color: string }> = {
 };
 
 export function CreditPortfolioPage() {
-  const { bootstrap } = useAuth();
   const navigate = useNavigate();
+  const theme = useTheme();
   const [credits, setCredits] = useState<PortfolioCredit[]>([]);
   const [error, setError] = useState('');
 
@@ -35,7 +35,7 @@ export function CreditPortfolioPage() {
       .catch((err: any) => setError(err?.response?.data?.message || 'No se pudieron cargar los créditos'));
   }, []);
 
-  const primary = bootstrap?.company?.theme.primaryColor || '#0057B8';
+  const primary = theme.primaryColor;
 
   return (
     <div className="s2">

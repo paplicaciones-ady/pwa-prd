@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import { AppBar } from '../../shared/components/AppBar';
 import { httpClient } from '../../shared/api/httpClient';
+import { useTheme } from '../../shared/theme/ThemeContext';
 
 interface DocDetail {
   id: string;
@@ -20,7 +20,7 @@ const DOC_STATUS: Record<string, { text: string; color: string }> = {
 
 export function CreditDocumentsPage() {
   const { id } = useParams<{ id: string }>();
-  const { bootstrap } = useAuth();
+  const theme = useTheme();
   const navigate = useNavigate();
   const [applicationNumber, setApplicationNumber] = useState('');
   const [status, setStatus] = useState('');
@@ -43,7 +43,7 @@ export function CreditDocumentsPage() {
       .catch(() => setError('No se pudieron cargar los documentos'));
   }, [id]);
 
-  const primary = bootstrap?.company?.theme.primaryColor || '#0057B8';
+  const primary = theme.primaryColor;
 
   return (
     <div className="s2">
