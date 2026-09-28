@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { productImage } from '../../shared/utils/format';
 import './PricesPage.css';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 // ── DATOS MOCK ──
 // TODO(real-data): GET /api/prices?q=... y selector PDV desde GET /api/prices/pdvs
@@ -24,7 +24,7 @@ const MOCK_PRODUCTS: PriceProduct[] = [
 const PDVS = ['PDV Principal', 'PDV Norte', 'PDV Sur'];
 
 export function PricesPage() {
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const [query, setQuery] = useState('');
   const [pdv, setPdv] = useState(PDVS[0]);
 
@@ -37,12 +37,6 @@ export function PricesPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <button type="button" className="cback" onClick={() => navigate('/home')} aria-label="Volver">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </button>
-          <div className="org-chip"><span className="org-dot" />Precios</div>
-        </div>
         <h1 className="page-title">Consulta de precios</h1>
       </div>
 

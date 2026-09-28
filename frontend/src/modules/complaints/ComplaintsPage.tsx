@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { productImage } from '../../shared/utils/format';
 import './ComplaintsPage.css';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 // ── DATOS MOCK ──
 // TODO(real-data): cargar producto desde GET /api/products/:id
@@ -32,18 +32,12 @@ function Stepper({ value, onChange }: { value: number; onChange: (v: number) => 
 }
 
 export function ComplaintsPage() {
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const [qty, setQty] = useState(1);
 
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <button type="button" className="cback" onClick={() => navigate('/home')} aria-label="Volver">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </button>
-          <div className="org-chip"><span className="org-dot" />Quejas</div>
-        </div>
         <h1 className="page-title">Quejas y reclamos</h1>
       </div>
 

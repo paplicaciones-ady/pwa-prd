@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { httpClient } from '../../shared/api/httpClient';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 interface Profile {
   id: string;
@@ -18,7 +18,7 @@ interface Permission {
 
 export function ProfilesPage() {
   const { moduleContexts, loadModuleContext } = useAuth();
-  const navigate = useNavigate();
+  useBackTarget('/profiles');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [newName, setNewName] = useState('');
@@ -109,12 +109,6 @@ export function ProfilesPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/home')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Perfiles</div>
-        </div>
         <h1 className="page-title">Perfiles y permisos</h1>
       </div>
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { httpClient } from '../../shared/api/httpClient';
 import { ModulesManagement } from './ModulesManagement';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 interface FlagItem {
   id: string;
@@ -18,7 +18,7 @@ const TABS = [
 
 export function ConfigPage() {
   const { bootstrap, moduleContexts, loadModuleContext, refreshBootstrap } = useAuth();
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const [tab, setTab] = useState('company');
 
   const [name, setName] = useState('');
@@ -102,12 +102,6 @@ export function ConfigPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/home')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Configuración</div>
-        </div>
         <h1 className="page-title">Configuración</h1>
       </div>
 

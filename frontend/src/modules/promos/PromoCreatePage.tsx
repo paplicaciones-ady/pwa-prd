@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { useAuth } from '../auth/AuthContext';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 export function PromoCreatePage() {
-  const navigate = useNavigate();
+  useBackTarget('/promos');
   const { moduleContexts, loadModuleContext } = useAuth();
   const [titulo, setTitulo] = useState('');
   const [descuento, setDescuento] = useState('');
@@ -37,12 +37,6 @@ export function PromoCreatePage() {
     return (
       <div className="s2">
         <div className="s2-head">
-          <div className="s2-top">
-            <div className="cback" onClick={() => navigate('/promos')}>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </div>
-            <div className="org-chip"><span className="org-dot" />Nueva promo</div>
-          </div>
           <h1 className="page-title">Nueva promo</h1>
         </div>
         <div className="s2-body">
@@ -59,12 +53,6 @@ export function PromoCreatePage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/promos')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Nueva promo</div>
-        </div>
         <h1 className="page-title">Nueva promo</h1>
         <p className="lead below">Sub-ruta protegida por <code>promos.crear</code> (código también devuelve 403 sin el permiso).</p>
       </div>

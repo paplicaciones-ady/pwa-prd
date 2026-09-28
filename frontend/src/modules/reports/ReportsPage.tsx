@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { useAuth } from '../auth/AuthContext';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 interface ReportSummary {
   creditos: number;
@@ -10,7 +10,7 @@ interface ReportSummary {
 }
 
 export function ReportsPage() {
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const { moduleContexts, loadModuleContext } = useAuth();
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [generated, setGenerated] = useState<{ url: string; rows: number; formato: string } | null>(null);
@@ -54,12 +54,6 @@ export function ReportsPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/home')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Reportes</div>
-        </div>
         <h1 className="page-title">Reportes comerciales</h1>
         <p className="lead below">Permisos <code>reports.ver</code> / <code>reports.generar</code>.</p>
       </div>

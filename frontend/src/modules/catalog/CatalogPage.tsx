@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { useAuth } from '../auth/AuthContext';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 interface CatalogItem {
   sku: string;
@@ -10,7 +10,7 @@ interface CatalogItem {
 }
 
 export function CatalogPage() {
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const { moduleContexts, loadModuleContext } = useAuth();
   const [items, setItems] = useState<CatalogItem[] | null>(null);
   const [error, setError] = useState('');
@@ -52,12 +52,6 @@ export function CatalogPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/home')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Catálogo</div>
-        </div>
         <h1 className="page-title">Catálogo de productos</h1>
         <p className="lead below">Listado de prueba con permisos <code>catalog.ver</code> / <code>catalog.cargar</code>.</p>
       </div>

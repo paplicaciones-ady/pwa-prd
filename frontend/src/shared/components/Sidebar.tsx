@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../modules/auth/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
+import { ConnectivityBadge } from './ConnectivityBadge';
 
 const ICONS: Record<string, React.ReactNode> = {
   cliente: (
@@ -108,7 +109,7 @@ export function Sidebar() {
           <span className="side-letter">{companyName.charAt(0)}</span>
         )}
         <span className="side-name">{companyName}</span>
-        <span className="status-dot online">En línea</span>
+        <ConnectivityBadge />
       </div>
 
       <nav className="side-nav">

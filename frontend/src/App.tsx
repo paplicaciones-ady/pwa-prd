@@ -1,9 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './modules/auth/AuthContext';
+import { ConnectivityProvider } from './shared/connectivity/ConnectivityContext';
+import { ConnectivityBanner } from './shared/components/ConnectivityBanner';
+import { RouteConnectivityProbe } from './shared/connectivity/RouteConnectivityProbe';
 import { ThemeProvider } from './shared/theme/ThemeContext';
 import { LoginPage } from './modules/auth/LoginPage';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
+import { AppLayout } from './shared/layout/AppLayout';
 import { RequirePerm } from './shared/components/RequirePerm';
 import { RequireSuper } from './shared/components/RequireSuper';
 import { NotFoundPage } from './shared/pages/ErrorPages';
@@ -47,194 +51,205 @@ const TestViewPage = import.meta.env.DEV
 
 export function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <ThemeProvider>
-          <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Clientes */}
-          <Route
-            path="/clients"
-            element={
-              <RequirePerm module="clients" perm="clients.read">
-                <ClientsListPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/clients/new"
-            element={
-              <RequirePerm module="clients" perm="clients.create">
-                <CreateClientPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/clients/:id/edit"
-            element={
-              <RequirePerm module="clients" perm="clients.update">
-                <EditClientPage />
-              </RequirePerm>
-            }
-          />
-
-          {/* Configuración */}
-          <Route
-            path="/config"
-            element={
-              <RequirePerm module="config" perm="config.read">
-                <ConfigPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/global-config"
-            element={
-              <RequireSuper>
-                <SuperAdminGlobalConfigPage />
-              </RequireSuper>
-            }
-          />
-
-          {/* Créditos */}
-          <Route
-            path="/credits"
-            element={
-              <RequirePerm module="credits" perm="credits.read">
-                <CreditsHomePage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/credits/list"
-            element={
-              <RequirePerm module="credits" perm="credits.read">
-                <CreditsListPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/credits/study"
-            element={
-              <RequirePerm module="credits" perm="credits.study">
-                <CreditStudyPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/credits/result/:id"
-            element={
-              <RequirePerm module="credits" perm="credits.study">
-                <CreditResultPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/credits/sign/:id"
-            element={
-              <RequirePerm module="credits" perm="credits.study">
-                <CreditSignPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/credits/success/:id"
-            element={
-              <RequirePerm module="credits" perm="credits.study">
-                <CreditSuccessPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/credits/mine"
-            element={
-              <RequirePerm module="credits" perm="credits.read">
-                <CreditPortfolioPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/credits/:id/documents"
-            element={
-              <RequirePerm module="credits" perm="credits.read">
-                <CreditDocumentsPage />
-              </RequirePerm>
-            }
-          />
-
-          {/* Usuarios / perfiles */}
-          <Route
-            path="/users"
-            element={
-              <RequirePerm module="users" perm="users.read">
-                <UsersListPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/profiles"
-            element={
-              <RequirePerm module="profiles" perm="profiles.read">
-                <ProfilesPage />
-              </RequirePerm>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Vista de pruebas (solo DEV) */}
-          {TestViewPage && (
+    // El proveedor de conexión envuelve a AuthProvider a propósito: la sonda
+    // debe funcionar también en /login, donde no hay sesión que consultar.
+    <ConnectivityProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <ThemeProvider>
+            <ConnectivityBanner />
+            <RouteConnectivityProbe />
+            {/* El layout envuelve TODAS las rutas (incluidas las que solo usan
+                RequirePerm, /login y el 404) para que la topbar sea parte del
+                chrome fijo y no dependa de estar detrás de ProtectedRoute. */}
+            <AppLayout>
+            <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route
-              path="/test"
+              path="/home"
               element={
                 <ProtectedRoute>
-                  <Suspense fallback={null}>
-                    <TestViewPage />
-                  </Suspense>
+                  <HomePage />
                 </ProtectedRoute>
               }
             />
-          )}
 
-          {/* Módulos comerciales Herragro (9 nuevos) */}
-          <Route path="/portfolio" element={<RequirePerm module="portfolio" perm="portfolio.read"><PortfolioPage /></RequirePerm>} />
-          <Route path="/discounts" element={<RequirePerm module="discounts" perm="discounts.read"><DiscountsPage /></RequirePerm>} />
-          <Route path="/surveys" element={<RequirePerm module="surveys" perm="surveys.read"><SurveysPage /></RequirePerm>} />
-          <Route path="/expenses" element={<RequirePerm module="expenses" perm="expenses.read"><ExpensesPage /></RequirePerm>} />
-          <Route path="/complaints" element={<RequirePerm module="complaints" perm="complaints.read"><ComplaintsPage /></RequirePerm>} />
-          <Route path="/prices" element={<RequirePerm module="prices" perm="prices.read"><PricesPage /></RequirePerm>} />
-          <Route path="/new-products" element={<RequirePerm module="new-products" perm="new-products.read"><NewProductsPage /></RequirePerm>} />
-          <Route path="/routes" element={<RequirePerm module="routes" perm="routes.read"><RoutesPage /></RequirePerm>} />
-          <Route path="/brain" element={<RequirePerm module="brain" perm="brain.read"><BrainPage /></RequirePerm>} />
+            {/* Clientes */}
+            <Route
+              path="/clients"
+              element={
+                <RequirePerm module="clients" perm="clients.read">
+                  <ClientsListPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/clients/new"
+              element={
+                <RequirePerm module="clients" perm="clients.create">
+                  <CreateClientPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/clients/:id/edit"
+              element={
+                <RequirePerm module="clients" perm="clients.update">
+                  <EditClientPage />
+                </RequirePerm>
+              }
+            />
 
-          {/* Otros módulos (algunos aún no registrados en BD; RequirePerm los mantiene coherentes) */}
-          <Route path="/calculator" element={<RequirePerm module="calculator" perm="calculator.sumar"><CalculatorPage /></RequirePerm>} />
-          <Route path="/catalog" element={<RequirePerm module="catalog" perm="catalog.ver"><CatalogPage /></RequirePerm>} />
-          <Route path="/promos" element={<RequirePerm module="promos" perm="promos.ver"><PromosPage /></RequirePerm>} />
-          <Route path="/promos/nueva" element={<RequirePerm module="promos" perm="promos.crear"><PromoCreatePage /></RequirePerm>} />
-          <Route path="/reports" element={<RequirePerm module="reports" perm="reports.ver"><ReportsPage /></RequirePerm>} />
+            {/* Configuración */}
+            <Route
+              path="/config"
+              element={
+                <RequirePerm module="config" perm="config.read">
+                  <ConfigPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/global-config"
+              element={
+                <RequireSuper>
+                  <SuperAdminGlobalConfigPage />
+                </RequireSuper>
+              }
+            />
 
-          {/* 404 real: antes redirigía silenciosamente a /home */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-        </ThemeProvider>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Créditos */}
+            <Route
+              path="/credits"
+              element={
+                <RequirePerm module="credits" perm="credits.read">
+                  <CreditsHomePage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/credits/list"
+              element={
+                <RequirePerm module="credits" perm="credits.read">
+                  <CreditsListPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/credits/study"
+              element={
+                <RequirePerm module="credits" perm="credits.study">
+                  <CreditStudyPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/credits/result/:id"
+              element={
+                <RequirePerm module="credits" perm="credits.study">
+                  <CreditResultPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/credits/sign/:id"
+              element={
+                <RequirePerm module="credits" perm="credits.study">
+                  <CreditSignPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/credits/success/:id"
+              element={
+                <RequirePerm module="credits" perm="credits.study">
+                  <CreditSuccessPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/credits/mine"
+              element={
+                <RequirePerm module="credits" perm="credits.read">
+                  <CreditPortfolioPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/credits/:id/documents"
+              element={
+                <RequirePerm module="credits" perm="credits.read">
+                  <CreditDocumentsPage />
+                </RequirePerm>
+              }
+            />
+
+            {/* Usuarios / perfiles */}
+            <Route
+              path="/users"
+              element={
+                <RequirePerm module="users" perm="users.read">
+                  <UsersListPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/profiles"
+              element={
+                <RequirePerm module="profiles" perm="profiles.read">
+                  <ProfilesPage />
+                </RequirePerm>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Vista de pruebas (solo DEV) */}
+            {TestViewPage && (
+              <Route
+                path="/test"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={null}>
+                      <TestViewPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+            )}
+
+            {/* Módulos comerciales Herragro (9 nuevos) */}
+            <Route path="/portfolio" element={<RequirePerm module="portfolio" perm="portfolio.read"><PortfolioPage /></RequirePerm>} />
+            <Route path="/discounts" element={<RequirePerm module="discounts" perm="discounts.read"><DiscountsPage /></RequirePerm>} />
+            <Route path="/surveys" element={<RequirePerm module="surveys" perm="surveys.read"><SurveysPage /></RequirePerm>} />
+            <Route path="/expenses" element={<RequirePerm module="expenses" perm="expenses.read"><ExpensesPage /></RequirePerm>} />
+            <Route path="/complaints" element={<RequirePerm module="complaints" perm="complaints.read"><ComplaintsPage /></RequirePerm>} />
+            <Route path="/prices" element={<RequirePerm module="prices" perm="prices.read"><PricesPage /></RequirePerm>} />
+            <Route path="/new-products" element={<RequirePerm module="new-products" perm="new-products.read"><NewProductsPage /></RequirePerm>} />
+            <Route path="/routes" element={<RequirePerm module="routes" perm="routes.read"><RoutesPage /></RequirePerm>} />
+            <Route path="/brain" element={<RequirePerm module="brain" perm="brain.read"><BrainPage /></RequirePerm>} />
+
+            {/* Otros módulos (algunos aún no registrados en BD; RequirePerm los mantiene coherentes) */}
+            <Route path="/calculator" element={<RequirePerm module="calculator" perm="calculator.sumar"><CalculatorPage /></RequirePerm>} />
+            <Route path="/catalog" element={<RequirePerm module="catalog" perm="catalog.ver"><CatalogPage /></RequirePerm>} />
+            <Route path="/promos" element={<RequirePerm module="promos" perm="promos.ver"><PromosPage /></RequirePerm>} />
+            <Route path="/promos/nueva" element={<RequirePerm module="promos" perm="promos.crear"><PromoCreatePage /></RequirePerm>} />
+            <Route path="/reports" element={<RequirePerm module="reports" perm="reports.ver"><ReportsPage /></RequirePerm>} />
+
+            {/* 404 real: antes redirigía silenciosamente a /home */}
+            <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+            </AppLayout>
+          </ThemeProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </ConnectivityProvider>
   );
 }

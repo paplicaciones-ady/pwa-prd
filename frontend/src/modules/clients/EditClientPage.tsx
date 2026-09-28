@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 export function EditClientPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  useBackTarget('/clients');
   const [form, setForm] = useState<Record<string, any>>({});
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
@@ -60,12 +62,6 @@ export function EditClientPage() {
     return (
       <div className="s2">
         <div className="s2-head">
-          <div className="s2-top">
-            <div className="cback" onClick={() => navigate('/clients')}>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </div>
-            <div className="org-chip"><span className="org-dot" />Clientes</div>
-          </div>
           <h1 className="page-title">Editar cliente</h1>
         </div>
         <div className="s2-body">
@@ -79,12 +75,6 @@ export function EditClientPage() {
     return (
       <div className="s2">
         <div className="s2-head">
-          <div className="s2-top">
-            <div className="cback" onClick={() => navigate('/clients')}>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </div>
-            <div className="org-chip"><span className="org-dot" />Clientes</div>
-          </div>
           <h1 className="page-title">Editar cliente</h1>
         </div>
         <div className="s2-body">
@@ -97,12 +87,6 @@ export function EditClientPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/clients')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Clientes</div>
-        </div>
         <h1 className="page-title">Editar cliente</h1>
       </div>
 

@@ -2,7 +2,7 @@ const STEPS = ['Estudio', 'Aprobación', 'Firma', 'Desembolso'];
 
 export function CreditStepper({ current }: { current: 1 | 2 | 3 | 4 }) {
   return (
-    <div className="flow">
+    <div className="flow-track">
       {STEPS.map((label, i) => {
         const num = i + 1;
         const done = num < current;

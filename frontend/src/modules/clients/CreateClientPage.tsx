@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { AddressBuilderModal } from '../../shared/components/AddressBuilderModal';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 const ACTIVIDADES: Array<[string, string]> = [
   ['0111', 'Cultivo de cereales'], ['0113', 'Cultivo de hortalizas'], ['0121', 'Cultivo de frutas tropicales'],
@@ -52,6 +53,7 @@ const EMPTY_ADDRESS: Address = {
 
 export function CreateClientPage() {
   const navigate = useNavigate();
+  useBackTarget('/clients');
   const [searchParams] = useSearchParams();
   const nitParam = searchParams.get('nit');
   const [personType, setPersonType] = useState('');
@@ -107,12 +109,6 @@ export function CreateClientPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/clients')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Clientes</div>
-        </div>
         <h1 className="page-title">Crear cliente</h1>
       </div>
 

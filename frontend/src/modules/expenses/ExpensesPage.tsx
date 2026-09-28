@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Can } from '../../shared/components/Can';
 import './ExpensesPage.css';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 // ── DATOS MOCK ──
 // TODO(real-data): catálogo de dependencias desde GET /api/expenses/dependencies
@@ -10,6 +11,7 @@ const DEPENDENCIES = ['Comercial', 'Mercadeo', 'Logística', 'Administrativa'];
 
 export function ExpensesPage() {
   const navigate = useNavigate();
+  useBackTarget('/home');
   const { moduleContexts } = useAuth();
   const permissions = moduleContexts.expenses?.permissions || [];
 
@@ -28,12 +30,6 @@ export function ExpensesPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <button type="button" className="cback" onClick={() => navigate('/home')} aria-label="Volver">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </button>
-          <div className="org-chip"><span className="org-dot" />Gastos</div>
-        </div>
         <h1 className="page-title">Gastos de viaje</h1>
       </div>
 

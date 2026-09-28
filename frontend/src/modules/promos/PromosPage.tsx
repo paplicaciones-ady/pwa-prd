@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { useAuth } from '../auth/AuthContext';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 interface Promo {
   id: string;
@@ -10,7 +11,7 @@ interface Promo {
 }
 
 export function PromosPage() {
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const { moduleContexts, loadModuleContext } = useAuth();
   const [promos, setPromos] = useState<Promo[] | null>(null);
   const [detail, setDetail] = useState<Promo | null>(null);
@@ -54,12 +55,6 @@ export function PromosPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/home')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Promociones</div>
-        </div>
         <h1 className="page-title">Promociones</h1>
         <p className="lead below">Ruta extra protegida: <code>promos.crear</code> habilita "Nueva promo".</p>
       </div>

@@ -46,7 +46,7 @@ export function CreditSuccessPage() {
   };
 
   return (
-    <div className="s2 credit-shell" style={{ background: 'var(--bg)' }}>
+    <div className="s2 crflow" style={{ background: 'var(--bg)' }}>
       <div className="okhero">
         <div className="hrow" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontWeight: 800, fontSize: 12 }}>{disbursed ? '¡Desembolso exitoso!' : '¡Firma exitosa!'}</span>

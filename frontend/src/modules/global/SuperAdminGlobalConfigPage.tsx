@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { useAuth, CompanySummary } from '../auth/AuthContext';
 import { ModulesManagement } from '../config/ModulesManagement';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 interface ListCompany extends CompanySummary {
   isActive: boolean;
@@ -17,6 +18,7 @@ const TABS = [
 export function SuperAdminGlobalConfigPage() {
   const { exitCompany } = useAuth();
   const navigate = useNavigate();
+  useBackTarget('/home');
   const [tab, setTab] = useState('companies');
 
   const [companies, setCompanies] = useState<ListCompany[]>([]);
@@ -84,12 +86,6 @@ export function SuperAdminGlobalConfigPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/home')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Panel superadmin</div>
-        </div>
         <h1 className="page-title">Configuración global</h1>
         <p className="lead below">
           Creá empresas, configurá sus datos y administrá los módulos de la plataforma.

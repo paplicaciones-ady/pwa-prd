@@ -52,7 +52,7 @@ export function CreditSignPage() {
 
   if (error && !credit) {
     return (
-      <div className="s2 credit-shell">
+      <div className="s2 crflow">
         <AppBar title="Firma del pagaré" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
         <div className="body" style={{ paddingBottom: 24 }}>
           <div className="card" style={{ borderColor: '#f6caca', background: '#fdecec', color: '#c62828', fontSize: 12, fontWeight: 600 }}>
@@ -65,7 +65,7 @@ export function CreditSignPage() {
 
   if (!credit) {
     return (
-      <div className="s2 credit-shell">
+      <div className="s2 crflow">
         <AppBar title="Firma del pagaré" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
         <div className="body" style={{ color: 'var(--muted)', fontSize: 13 }}>Cargando…</div>
       </div>
@@ -77,7 +77,7 @@ export function CreditSignPage() {
   const phone = credit.client?.phone || '';
 
   return (
-    <div className="s2 credit-shell">
+    <div className="s2 crflow">
       <AppBar title="Firma del pagaré" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
       <div className="body" style={{ paddingBottom: 24 }}>
         <CreditStepper current={3} />

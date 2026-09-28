@@ -42,12 +42,6 @@ export function CalculatorPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="org-chip">
-            <span className="org-dot" />
-            Calculadora
-          </div>
-        </div>
         <h1 className="page-title">Calculadora</h1>
         <p className="lead below">Suma de prueba· Front → Kong → Backend → RBAC.</p>
       </div>

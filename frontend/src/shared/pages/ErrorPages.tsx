@@ -1,18 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useBackTarget } from '../layout/TopBarContext';
 import './ErrorPages.css';
 
 export function NotFoundPage() {
+  useBackTarget('/home');
+
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <Link to="/home" className="cback" aria-label="Volver al inicio">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <div className="org-chip"><span className="org-dot" />Error</div>
-        </div>
         <h1 className="page-title">Página no encontrada</h1>
       </div>
 
@@ -38,17 +33,11 @@ interface ForbiddenPageProps {
 }
 
 export function ForbiddenPage({ moduleName }: ForbiddenPageProps) {
+  useBackTarget('/home');
+
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <Link to="/home" className="cback" aria-label="Volver al inicio">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <div className="org-chip"><span className="org-dot" />Acceso restringido</div>
-        </div>
         <h1 className="page-title">Sin acceso</h1>
       </div>
 

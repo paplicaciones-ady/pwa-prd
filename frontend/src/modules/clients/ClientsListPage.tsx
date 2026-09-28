@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Can } from '../../shared/components/Can';
 import { httpClient } from '../../shared/api/httpClient';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 interface Client {
   id: string;
@@ -32,6 +33,7 @@ function initials(name: string): string {
 export function ClientsListPage() {
   const { loadModuleContext, moduleContexts } = useAuth();
   const navigate = useNavigate();
+  useBackTarget('/home');
   const [clients, setClients] = useState<Client[]>([]);
   const [query, setQuery] = useState('');
   const [total, setTotal] = useState(0);
@@ -81,12 +83,6 @@ export function ClientsListPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="cback" onClick={() => navigate('/home')}>
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
-          <div className="org-chip"><span className="org-dot" />Clientes</div>
-        </div>
         <h1 className="page-title">Clientes</h1>
         <p className="lead below">{total === 0 ? 'Gestioná los clientes de tu empresa.' : `${total} cliente${total === 1 ? '' : 's'} registrado${total === 1 ? '' : 's'}.`}</p>
       </div>

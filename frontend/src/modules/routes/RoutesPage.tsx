@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import type * as Leaflet from 'leaflet';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 import 'leaflet/dist/leaflet.css';
 import './RoutesPage.css';
 
@@ -153,10 +153,13 @@ function RouteMap({ selected }: { selected: Record<string, boolean> }) {
 }
 
 export function RoutesPage() {
-  const navigate = useNavigate();
   const [view, setView] = useState<'dashboard' | 'detail'>('dashboard');
   const [period, setPeriod] = useState<'Día' | 'Mes'>('Mes');
   const [tab, setTab] = useState<'Clientes' | 'Mapa'>('Clientes');
+  // En el dashboard la salida es la ruta; en el detalle la vista ya tiene su
+  // propio botón "volver" en el hero porque ese salto es interno (setView), no
+  // una navegación de router, y no se puede expresar como destino de ruta.
+  useBackTarget(view === 'dashboard' ? '/home' : null);
   const [selected, setSelected] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(MOCK_CLIENTS.map((c) => [c.id, true]))
   );
@@ -167,12 +170,6 @@ export function RoutesPage() {
     return (
       <div className="s2">
         <div className="s2-head">
-          <div className="s2-top">
-            <button type="button" className="cback" onClick={() => navigate('/home')} aria-label="Volver">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-            <div className="org-chip"><span className="org-dot" />Rutero</div>
-          </div>
           <h1 className="page-title">Rutero</h1>
         </div>
 

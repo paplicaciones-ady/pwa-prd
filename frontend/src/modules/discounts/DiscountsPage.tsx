@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Can } from '../../shared/components/Can';
 import { formatCOP, productImage } from '../../shared/utils/format';
 import './DiscountsPage.css';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 // ── DATOS MOCK ──
 // TODO(real-data): GET /api/discounts/products, reglas de descuento y presupuesto por vendedor
@@ -34,7 +34,7 @@ function Stepper({ value, onChange }: { value: number; onChange: (v: number) => 
 }
 
 export function DiscountsPage() {
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const { moduleContexts } = useAuth();
   const permissions = moduleContexts.discounts?.permissions || [];
 
@@ -68,12 +68,6 @@ export function DiscountsPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <button type="button" className="cback" onClick={() => navigate('/home')} aria-label="Volver">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </button>
-          <div className="org-chip"><span className="org-dot" />Descuentos</div>
-        </div>
         <h1 className="page-title">Descuentos</h1>
       </div>
 

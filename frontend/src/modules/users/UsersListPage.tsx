@@ -120,9 +120,6 @@ export function UsersListPage() {
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <div className="org-chip"><span className="org-dot" />Usuarios</div>
-        </div>
         <h1 className="page-title">Gestión de usuarios</h1>
       </div>
 

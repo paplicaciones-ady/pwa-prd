@@ -55,6 +55,10 @@ input, select, textarea {
 }
 
 /* ===== Navbar superior ===== */
+/* Alto de la topbar: 12+12 de padding + 36 del botón + 1 del borde. Se declara
+   como variable porque .appbar (flujo de crédito) también es sticky y necesita
+   pegarse justo debajo en vez de taparla. */
+:root { --topbar-h: 61px; }
 .navbar {
   background: var(--white);
   border-bottom: 1px solid var(--line);
@@ -63,6 +67,7 @@ input, select, textarea {
   top: 0;
   z-index: 100;
   overflow: hidden;
+  min-height: var(--topbar-h);
 }
 .navbar-inner {
   display: flex;
@@ -70,6 +75,26 @@ input, select, textarea {
   justify-content: space-between;
   position: relative;
   z-index: 2;
+}
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+/* La marca es un <button> para poder navegar al inicio; se neutraliza el
+   estilo por defecto de button sin tocar .brand, que se usa en otros sitios. */
+.navbar-brand {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  min-width: 0;
+}
+.navbar-company {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .brand {
   font-family: var(--display);
@@ -92,6 +117,9 @@ input, select, textarea {
   padding: 3px 10px;
   border-radius: 999px;
   letter-spacing: 0.02em;
+  /* La barra mide --app-max (500px) y tiene overflow:hidden, así que sin esto
+     un nombre de empresa largo encogía la pastilla hasta recortarla. */
+  flex: none;
 }
 .status-dot.online {
   background: rgba(34,139,34,.08);
@@ -103,6 +131,76 @@ input, select, textarea {
   color: #b00020;
   border: 1px solid rgba(225,18,37,.2);
 }
+/* Estados agregados: el punto antes solo distinguía online/offline y el
+   offline nunca se aplicaba porque el texto estaba escrito en el markup. */
+.status-dot.degraded {
+  background: rgba(242,186,42,.14);
+  color: #8a6300;
+  border: 1px solid rgba(242,186,42,.38);
+}
+.status-dot.unknown {
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+/* ===== Aviso de conexión =====
+   Va en el flujo, no fijo: el navbar es sticky con z-index 100 y un banner
+   fixed lo taparía. La persistencia del estado la cubre el punto de estado del
+   header/sidebar, que siempre está visible. */
+.conn-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  font-size: 13px;
+}
+.conn-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.conn-banner-text strong { font-weight: 700; }
+.conn-banner-text span { font-size: 12px; opacity: .85; line-height: 1.4; }
+.conn-banner-offline {
+  background: #fdebed;
+  color: #b00020;
+  border-bottom: 1px solid rgba(225,18,37,.2);
+}
+.conn-banner-degraded {
+  background: #fff6e0;
+  color: #8a6300;
+  border-bottom: 1px solid rgba(242,186,42,.3);
+}
+.conn-banner-retry {
+  flex-shrink: 0;
+  background: rgba(255,255,255,.75);
+  color: inherit;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 7px 15px;
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.conn-banner-retry:disabled { opacity: .55; cursor: default; }
+
+/* Espera de sesión recuperable (fallo de red al validar la cookie). */
+.auth-wait {
+  max-width: 420px;
+  margin: 72px auto;
+  text-align: center;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 32px 24px;
+}
+.auth-wait h2 { font-size: 18px; margin-bottom: 10px; }
+.auth-wait p { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 18px; }
+
 .nav-links { display: flex; gap: 8px; align-items: center; }
 .ibtn, .logout-btn {
   width: 36px; height: 36px;
@@ -153,7 +251,9 @@ input, select, textarea {
 .s1 {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  /* La topbar es fija y vive fuera del flujo de la página: se descuenta para
+     que la pantalla no quede 61px más alta que la ventana. */
+  min-height: calc(100vh - var(--topbar-h));
   background: var(--bg);
 }
 .s1-hero {
@@ -314,7 +414,7 @@ input, select, textarea {
 .s2 {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--topbar-h));
 }
 .s2-head {
   background: linear-gradient(155deg, var(--accent-deep), var(--accent) 60%, #8b0b16);
@@ -635,7 +735,7 @@ input, select, textarea {
 .profile-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--topbar-h));
 }
 .profile-head {
   background: linear-gradient(155deg, var(--accent-deep), var(--accent) 60%, #8b0b16);
@@ -781,8 +881,11 @@ input, select, textarea {
   background: var(--white);
   border-bottom: 1px solid var(--line);
   position: sticky;
-  top: 0;
-  z-index: 50;
+  /* Antes se pegaba en top: 0 y quedaba por encima de la topbar (z-index: 110
+     contra 100), con lo que la tapaba y ocultaba el estado de conexión en las
+     6 páginas del flujo de crédito. Ahora se apila justo debajo de ella. */
+  top: var(--topbar-h);
+  z-index: 110;
 }
 .appbar .abk {
   width: 36px;
@@ -934,6 +1037,104 @@ input, select, textarea {
   cursor: pointer;
 }
 
+/* ===== Scale 1-5 ===== */
+.scale {
+  margin: 8px 2px 16px;
+}
+.scale-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 4px;
+}
+.scale-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+.scale-of {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--faint);
+}
+.scale input[type="range"] {
+  width: 100%;
+  height: 28px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.scale-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+  margin-top: -2px;
+}
+
+/* ===== Info tooltip ===== */
+.tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.tip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+}
+.tip-btn:hover,
+.tip-btn[aria-expanded="true"] {
+  color: var(--accent);
+}
+.tip-bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 230px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease-out;
+  /* no debe capturar el scroll táctil del modal */
+  pointer-events: none;
+  z-index: 5;
+}
+.tip-bubble.on {
+  opacity: 1;
+  visibility: visible;
+}
+.tip-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--ink);
+}
+
 /* ===== Checkbox row ===== */
 .check-row {
   display: flex;
@@ -976,10 +1177,11 @@ input, select, textarea {
 /* ===== Bottom button row ===== */
 .rowbtn {
   display: flex;
+  justify-content: center;
   gap: 10px;
   margin-top: 8px;
 }
-.rowbtn .btn { flex: 1; }
+.rowbtn .btn { flex: none; width: auto; min-width: 150px; }
 
 /* ===== Generic body padding for pages without s2-body ===== */
 .body {
@@ -1030,7 +1232,7 @@ input, select, textarea {
 .fab-wrap:hover .fab-label { opacity: 1; }
 
 /* ===== Flujo de crédito (Impulsa Ferretero · mockup) ===== */
-.flow {
+.flow-track {
   display: flex;
   align-items: flex-start;
   margin-bottom: 18px;
@@ -1144,6 +1346,7 @@ input, select, textarea {
   border: 0;
   border-radius: 11px;
   padding: 9px 12px;
+  min-height: 52px;
   font-family: var(--display);
   font-weight: 700;
   font-size: 11px;
@@ -1343,7 +1546,7 @@ input, select, textarea {
     width: 100%;
   }
   .s2 {
-    min-height: 100vh;
+    min-height: calc(100vh - var(--topbar-h));
     box-shadow: 0 0 60px rgba(0,0,0,.35);
     background: var(--bg);
   }
@@ -1363,24 +1566,9 @@ input, select, textarea {
   }
 }
 
-/* Flujo de estudio de crédito (Study → Result → Sign → Success), solo en el
-   rango intermedio 560–767.98px: en vez del marco fijo de 500px, crece de
-   forma fluida y centrada. A partir de 768px el layout de escritorio
-   (sidebar, más abajo) resetea .s2 a ancho completo sin cap alguno — esta
-   regla no debe competir con ese reset, por eso queda fuera de su rango. */
-@media (min-width: 560px) and (max-width: 767.98px) {
-  .s2.credit-shell {
-    max-width: min(720px, calc(100% - 32px));
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .credit-shell .appbar,
-  .credit-shell .okhero {
-    max-width: none;
-    width: 100%;
-    margin: 0;
-  }
-}
+/* Flujo de estudio de crédito: hereda el marco estándar (.s2, --app-max: 500px)
+   en móvil (scroll interno cubierto por .s2.flow y .credit-body), y en escritorio
+   aplica el reset full-bleed estándar con el contenido centrado. */
 
 @media (min-width: 560px) and (min-height: 560px) {
   .s2, .s1 {
@@ -1394,13 +1582,14 @@ input, select, textarea {
   bottom: 0;
   z-index: 60;
   display: flex;
+  justify-content: center;
   gap: 10px;
   padding: 12px 2px;
   background: linear-gradient(to top, var(--bg) 55%, rgba(243,247,251,0));
 }
-.action-bar .btn { flex: 1; }
-.action-bar.stacked { flex-direction: column; }
-.action-bar.stacked .btn { height: 60px; }
+.action-bar .btn { flex: none; width: auto; min-width: 200px; }
+.action-bar.stacked { flex-direction: column; align-items: center; }
+.action-bar.stacked .btn { height: 60px; min-width: 240px; }
 .action-bar .rowbtn { width: 100%; }
 
 /* ===== Flujo de crédito: acciones fijas al pie de pantalla (móvil) ===== */
@@ -1434,6 +1623,7 @@ input, select, textarea {
   align-items: center;
   gap: 13px;
   width: 100%;
+  min-height: 52px;
   text-align: left;
   border: 0;
   cursor: pointer;
@@ -1479,16 +1669,66 @@ input, select, textarea {
   background: linear-gradient(135deg, var(--green-light), var(--green-deep));
   box-shadow: 0 16px 26px -14px rgba(47, 125, 77, 0.75);
 }
+
+/* ===== Home de créditos: lista del proceso (círculo numerado + títulos/párrafos) ===== */
+.steps {
+  list-style: none;
+  margin: 4px auto 0;
+  padding: 0;
+  max-width: 620px;
+}
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 18px;
+}
+.steps li:last-child { padding-bottom: 0; }
+.step-num {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--blue);
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 15px;
+}
+.step-tx { min-width: 0; text-align: justify; }
+.step-tx h3 {
+  margin: 0 0 3px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.step-tx p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ===== Acciones del home: botones apilados, centrados, ajustados al ancho ===== */
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.home-actions .opt { width: 100%; margin-bottom: 0; }
 .credit-actions {
-  position: static;
   flex: none;
   padding: 16px 22px calc(16px + env(safe-area-inset-bottom));
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
 .credit-actions .btn {
-  width: 100%;
-  min-width: 0;
+  width: auto;
+  min-width: 240px;
   height: 68px;
   font-size: 16px;
   flex: none;
@@ -1497,9 +1737,11 @@ input, select, textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
 .credit-form-actions .btn {
-  width: 100%;
+  width: auto;
+  min-width: 240px;
   min-height: 68px;
 }
 .credit-form-actions .bhelp { margin-top: 8px; }
@@ -1510,6 +1752,7 @@ input, select, textarea {
   justify-content: space-between;
   gap: 10px;
   width: 100%;
+  min-height: 52px;
   text-align: left;
   font: inherit;
   cursor: pointer;
@@ -1579,6 +1822,29 @@ input, select, textarea {
   line-height: 1.2;
 }
 .side-brand .status-dot { margin-left: auto; }
+/* El sidebar es oscuro (#0f2438) y los colores base del punto asumen fondo
+   claro: #1e8449 sobre navy daba 3.35:1 y quedaba ilegible. Estas variantes
+   usan la paleta clara del mockup (navbar_ejemplo.ts) para fondo oscuro. */
+.side-brand .status-dot.online {
+  background: rgba(159,230,185,.16);
+  color: #bff0d2;
+  border-color: rgba(159,230,185,.3);
+}
+.side-brand .status-dot.degraded {
+  background: rgba(242,186,42,.18);
+  color: #f7d38a;
+  border-color: rgba(242,186,42,.35);
+}
+.side-brand .status-dot.offline {
+  background: rgba(225,18,37,.16);
+  color: #f8b4c0;
+  border-color: rgba(225,18,37,.3);
+}
+.side-brand .status-dot.unknown {
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.72);
+  border-color: rgba(255,255,255,.2);
+}
 
 .side-nav {
   display: flex;
@@ -1690,5 +1956,79 @@ input, select, textarea {
   }
   body {
     background: var(--bg);
+  }
+}
+
+/* Flujo de crédito: en escritorio hereda el reset estándar de .s2 (full-bleed,
+   sin sombra ni bordes); los pasos centran su contenido como cualquier módulo. */
+
+/* Consentimiento de los pasos: en móvil se alinea con el padding del contenido */
+.s2.crflow .check { margin: 0 22px 13px; }
+
+@media (min-width: 768px) {
+  /* Vistas de paso de créditos: el header queda full-bleed (como cualquier
+     módulo) y solo el contenido se centra y adapta; botones con la misma
+     lógica de ancho que los del home (75%, con tope), centrados. */
+  .s2.crflow .credit-body,
+  .s2.crflow .body {
+    width: 100%;
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+  .s2.crflow .credit-actions {
+    max-width: 760px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  /* El check (autorización de datos) se alinea con las tarjetas de contenido
+     (760px − padding horizontal 2×22px) */
+  .s2.crflow .check {
+    max-width: 716px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .home-actions {
+    width: 75%;
+    max-width: 620px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .s2.crflow .action-bar > .btn,
+  .s2.crflow .credit-actions .btn {
+    width: 75%;
+    min-width: 0;
+    max-width: 620px;
+  }
+  /* Fila de dos botones (Success/Result): comparte el ancho sin desbordar */
+  .s2.crflow .rowbtn {
+    width: 75%;
+    max-width: 620px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .s2.crflow .rowbtn .btn {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+/* Móvil: los botones de los pasos y del modal ocupan el ancho disponible para
+   no quedar comprimidos; la fila de dos botones se reparte a la mitad */
+@media (max-width: 559.98px) {
+  .s2.crflow .action-bar > .btn,
+  .s2.crflow .credit-actions .btn,
+  .modal-sheet .action-bar.stacked .btn {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .s2.crflow .rowbtn .btn {
+    flex: 1;
+    min-width: 0;
   }
 }

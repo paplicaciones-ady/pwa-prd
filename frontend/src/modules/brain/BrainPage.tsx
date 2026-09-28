@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { formatCOP } from '../../shared/utils/format';
 import './BrainPage.css';
+import { useBackTarget } from '../../shared/layout/TopBarContext';
 
 // ── DATOS MOCK ──
 // TODO(real-data): GET /api/brain/recommendations?clientId=... y motor RFM
@@ -56,18 +56,12 @@ function DualBar({ values }: { values: number[] }) {
 }
 
 export function BrainPage() {
-  const navigate = useNavigate();
+  useBackTarget('/home');
   const [activeTab, setActiveTab] = useState('Portafolio');
 
   return (
     <div className="s2">
       <div className="s2-head">
-        <div className="s2-top">
-          <button type="button" className="cback" onClick={() => navigate('/home')} aria-label="Volver">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </button>
-          <div className="org-chip"><span className="org-dot" />Brain</div>
-        </div>
         <h1 className="page-title">Recomendaciones</h1>
       </div>
 

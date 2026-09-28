@@ -1,8 +1,15 @@
 import axios from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
+import { API_BASE_URL, REQUEST_TIMEOUT_MS } from './config';
+import { classifyError, isCanceled, type ApiError } from './apiError';
+import { reportTransportFault } from '../connectivity/reportBus';
 
 export const httpClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api',
+  baseURL: API_BASE_URL,
   withCredentials: true,
+  // Ver REQUEST_TIMEOUT_MS: es una red de contención para cuando el gateway no
+  // responde, no un corte agresivo sobre los uploads de logo.
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     // Mitigación CSRF pragmática: un formulario cross-site no puede fijar este
     // header, así que el backend lo exige en toda mutación (ver CsrfMiddleware).
@@ -61,7 +68,33 @@ function clearIdempotencyKey(): void {
 }
 
 let isRefreshing = false;
-let queue: Array<() => void> = [];
+
+/** Requests que esperan al refresh de token en curso. */
+type PendingReplay = {
+  request: InternalAxiosRequestConfig;
+  resolve: (v: unknown) => void;
+  reject: (e: unknown) => void;
+};
+let refreshQueue: PendingReplay[] = [];
+
+/**
+ * Clasifica el error y lo deja anotado sobre el objeto original, en vez de
+ * reemplazarlo por un tipo propio. Los ~22 call sites leen
+ * `err.response.data.message.message`; cambiar la forma del rejection los
+ * rompería a todos de golpe. Con esto, el código viejo sigue funcionando y el
+ * nuevo puede consultar `getApiError(err).kind` para decidir qué mostrar.
+ */
+function annotate(error: unknown): ApiError | null {
+  const classified = classifyError(error);
+  if (!classified) return null;
+  if (error && typeof error === 'object') {
+    (error as { apiError?: ApiError }).apiError = classified;
+    if (classified.kind === 'offline' || classified.kind === 'timeout') {
+      reportTransportFault(classified.kind);
+    }
+  }
+  return classified;
+}
 
 httpClient.interceptors.response.use(
   (response) => {
@@ -72,8 +105,13 @@ httpClient.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Una cancelación (desmontaje, cambio de navegación) no es una falla de
+    // red: se propaga intacta para no marcar la app como desconectada.
+    if (isCanceled(error)) return Promise.reject(error);
+
     const originalRequest = error.config;
     const status = error.response?.status;
+    annotate(error);
 
     // No intervenir en login/refresh/logout — esos endpoints manejan sus propios errores
     const isAuthRequest =
@@ -88,22 +126,30 @@ httpClient.interceptors.response.use(
         isRefreshing = true;
         try {
           await httpClient.post('/auth/refresh');
-          queue.forEach((cb) => cb());
-          queue = [];
-        } catch {
-          // Refresh falló → solo redirigimos si NO estamos ya en login (evita loop)
+          const pending = refreshQueue;
+          refreshQueue = [];
+          pending.forEach(({ request, resolve }) => resolve(httpClient(request)));
+        } catch (refreshError) {
+          // Antes los requests encolados acá quedaban colgados para siempre:
+          // se vaciaba la cola sin resolver ni rechazar sus promesas. Ahora se
+          // rechazan con la causa real para que ninguna pantalla se quede
+          // esperando un resultado que no va a llegar.
+          annotate(refreshError);
+          const pending = refreshQueue;
+          refreshQueue = [];
+          pending.forEach(({ reject }) => reject(refreshError));
+
           if (!window.location.pathname.startsWith('/login')) {
             window.location.href = '/login';
           }
-          queue = [];
           return Promise.reject(error);
         } finally {
           isRefreshing = false;
         }
       }
 
-      return new Promise((resolve) => {
-        queue.push(() => resolve(httpClient(originalRequest)));
+      return new Promise((resolve, reject) => {
+        refreshQueue.push({ request: originalRequest, resolve, reject });
       });
     }
     return Promise.reject(error);

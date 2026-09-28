@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, useEffect, ReactNode } from 'react';
 import { httpClient } from '../../shared/api/httpClient';
+import { getApiError, isSessionInvalidating, type ApiError } from '../../shared/api/apiError';
 
 export interface ModulePlacement {
   id: string;
@@ -85,9 +86,12 @@ interface ModuleContext {
 
 interface AuthContextValue {
   bootstrap: BootstrapData | null;
+  /** Último fallo al recuperar la sesión. `null` si nunca falló o se recuperó. */
+  bootstrapError: ApiError | null;
   moduleContexts: Record<string, ModuleContext>;
   loadModuleContext: (moduleName: string) => Promise<void>;
   refreshBootstrap: () => Promise<void>;
+  retryBootstrap: () => Promise<void>;
   resetModuleContexts: () => void;
   enterCompany: (companyId: string) => Promise<void>;
   exitCompany: () => Promise<void>;
@@ -100,16 +104,40 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
+  const [bootstrapError, setBootstrapError] = useState<ApiError | null>(null);
   const [moduleContexts, setModuleContexts] = useState<Record<string, ModuleContext>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    httpClient
-      .get('/me/bootstrap')
-      .then((res) => setBootstrap(res.data))
-      .catch(() => setBootstrap(null))
-      .finally(() => setIsLoading(false));
+  const loadBootstrap = useCallback(async () => {
+    try {
+      const res = await httpClient.get('/me/bootstrap');
+      setBootstrap(res.data);
+      setBootstrapError(null);
+    } catch (err: unknown) {
+      const apiError = getApiError(err);
+      setBootstrapError(apiError);
+      // Antes cualquier fallo —incluido un 500 transitorio o un hueco de
+      // señal— ponía bootstrap en null, y ProtectedRoute traducía eso a
+      // "sesión cerrada" mandando al login. Ahora solo un 401/403 prueba que
+      // la sesión no sirve; el resto conserva lo que hubiera y la UI de
+      // conexión explica el motivo.
+      if (isSessionInvalidating(apiError?.kind)) {
+        setBootstrap(null);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadBootstrap();
+  }, [loadBootstrap]);
+
+  /** Reintenta la carga sin propagar el error, para la pantalla de espera. */
+  const retryBootstrap = useCallback(async () => {
+    setIsLoading(true);
+    await loadBootstrap();
+  }, [loadBootstrap]);
 
   const loadModuleContext = async (moduleName: string) => {
     if (moduleContexts[moduleName]) return;
@@ -120,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshBootstrap = async () => {
     const res = await httpClient.get('/me/bootstrap');
     setBootstrap(res.data);
+    setBootstrapError(null);
   };
 
   const resetModuleContexts = () => setModuleContexts({});
@@ -143,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // el cierre local de sesión no debe fallar aunque el servidor no responda
     }
     setBootstrap(null);
+    setBootstrapError(null);
     setModuleContexts({});
   };
 
@@ -152,9 +182,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         bootstrap,
+        bootstrapError,
         moduleContexts,
         loadModuleContext,
         refreshBootstrap,
+        retryBootstrap,
         resetModuleContexts,
         enterCompany,
         exitCompany,
