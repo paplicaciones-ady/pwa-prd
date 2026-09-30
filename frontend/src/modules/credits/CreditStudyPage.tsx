@@ -5,11 +5,14 @@ import { AppBar } from '../../shared/components/AppBar';
 import { CreditStepper } from '../../shared/components/CreditStepper';
 import { Modal } from '../../shared/components/Modal';
 import { ScaleInput } from '../../shared/components/ScaleInput';
+import { SignaturePad } from '../../shared/components/SignaturePad';
 import { httpClient } from '../../shared/api/httpClient';
 import { useTheme } from '../../shared/theme/ThemeContext';
 import { stripNitDv, validateNit } from '../../shared/utils/validators';
+import { CONSENT_UI_MODE } from './consentUiMode';
 
 type PersonType = 'natural' | 'juridica';
+type Decision = 'approved' | 'rejected';
 
 interface ClientLookup {
   id: string;
@@ -34,13 +37,17 @@ export function CreditStudyPage() {
   const [results, setResults] = useState<ClientLookup[]>([]);
   const [client, setClient] = useState<ClientLookup | null>(null);
   const [searching, setSearching] = useState(false);
-  const [consentData, setConsentData] = useState(false);
+  // La autorización ya no es un booleano: sin firma no hay consentimiento, y el
+  // backend deriva consent_data de que esta data URL exista.
+  const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [showConsent, setShowConsent] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [showFinance, setShowFinance] = useState(false);
   const [yearsExperience, setYearsExperience] = useState('');
   const [opportunityValue, setOpportunityValue] = useState('');
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<Decision | null>(null);
   const [financeError, setFinanceError] = useState('');
 
   const canCreateClient = moduleContexts['clients']?.permissions.includes('clients.create') ?? false;
@@ -99,54 +106,39 @@ export function CreditStudyPage() {
       setError('La confirmación del NIT no coincide.');
       return;
     }
-    if (!consentData) {
-      setError('Debes aceptar el tratamiento de datos para continuar');
+    if (!signatureData) {
+      setError('El cliente debe firmar la autorización de tratamiento de datos para continuar.');
       return;
     }
     setFinanceError('');
+    setPendingDecision(null);
     setShowFinance(true);
   };
 
   const closeFinanceModal = () => {
     if (submitting) return;
     setShowFinance(false);
+    setPendingDecision(null);
   };
 
-  const handleSubmit = async () => {
-    if (!client) return;
-    const years = Number(yearsExperience);
-    if (!yearsExperience || !(years > 0)) {
-      setFinanceError('Ingresa los años de experiencia del cliente.');
-      return;
-    }
-    const opportunity = Number(opportunityValue);
-    if (!opportunityValue || !(opportunity > 0)) {
-      setFinanceError('Ingresa el valor de la oportunidad.');
-      return;
-    }
-    if (reliabilityScore === null) {
-      setFinanceError('Selecciona qué tan confiable te parece este crédito.');
-      return;
-    }
+  const handleSubmit = async (decision: Decision) => {
+    if (!client || !signatureData || reliabilityScore === null) return;
     setFinanceError('');
     setSubmitting(true);
     try {
       const res = await httpClient.post('/credits/study', {
         clientId: client.id,
-        consentData,
         nit: nitDigits,
         personType,
-        yearsExperience: years,
-        opportunityValue: opportunity,
+        yearsExperience: Number(yearsExperience),
+        opportunityValue: Number(opportunityValue),
         reliabilityScore,
+        decision,
+        consentSignature: signatureData,
       });
-      navigate(`/credits/result/${res.data.credit.id}`, {
-        state: {
-          decision: res.data.mockup.decision,
-          approvedLimit: res.data.mockup.approvedLimit,
-          reason: res.data.mockup.reason,
-        },
-      });
+      // El veredicto ya quedó registrado: el paso 2 solo lo muestra, así que no
+      // se navega pasando nada por el state del router (se perdería al recargar).
+      navigate(`/credits/result/${res.data.id}`);
     } catch (err: any) {
       setFinanceError(err?.response?.data?.message?.message || 'No se pudo enviar la solicitud');
       setSubmitting(false);
@@ -154,9 +146,58 @@ export function CreditStudyPage() {
   };
 
   const logo = theme.logoUrl || undefined;
-  const clientReady = !!client && consentData && nitCheck.ok && confirmMatches;
+  const consentSigned = !!signatureData;
+  const clientReady = !!client && consentSigned && nitCheck.ok && confirmMatches;
   const nitError = nitTouched && !nitCheck.ok ? nitCheck.error : '';
   const confirmError = confirmTouched && nit.length > 0 && !confirmMatches ? 'La confirmación no coincide con el NIT.' : '';
+
+  const years = Number(yearsExperience);
+  const opportunity = Number(opportunityValue);
+  const answersReady =
+    yearsExperience !== '' &&
+    years > 0 &&
+    opportunityValue !== '' &&
+    opportunity > 0 &&
+    reliabilityScore !== null;
+  const decisionReady = answersReady && consentSigned;
+
+  const checkMark = (
+    <span className="bx">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+  const consentCopy = (
+    <p>
+      Acepto la <span>política de tratamiento de datos personales</span> y autorizo la consulta en
+      centrales de riesgo.
+    </p>
+  );
+
+  // Las dos variantes de UI comparten el mismo estado: solo cambia dónde se
+  // despliega el pad y cómo se abre (ver consentUiMode.ts).
+  const consentCard =
+    CONSENT_UI_MODE === 'modal' ? (
+      <div
+        className={`check ${consentSigned ? 'on' : ''}`}
+        onClick={() => setShowConsent(true)}
+        style={{ flex: 'none' }}
+      >
+        {checkMark}
+        {consentCopy}
+        {consentSigned && <img className="sigthumb" src={signatureData as string} alt="Firma registrada" />}
+      </div>
+    ) : (
+      <div>
+        <div className={`check ${consentSigned ? 'on' : ''}`} onClick={() => setShowConsent((v) => !v)}>
+          {checkMark}
+          {consentCopy}
+        </div>
+        {showConsent && <SignaturePad onChange={setSignatureData} />}
+        {consentSigned && <img className="sigthumb" src={signatureData as string} alt="Firma registrada" />}
+      </div>
+    );
 
   return (
     <div className="s2 flow crflow">
@@ -291,6 +332,9 @@ export function CreditStudyPage() {
               <svg viewBox="0 0 24 24" fill="none"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
               <p>Antes de correr el algoritmo, el cliente debe autorizar el tratamiento de sus datos personales.</p>
             </div>
+
+            {/* Variante 'inline': el pad vive en el cuerpo, bajo la nota. */}
+            {CONSENT_UI_MODE === 'inline' && consentCard}
           </>
         )}
 
@@ -313,14 +357,8 @@ export function CreditStudyPage() {
         {error && <p style={{ color: '#c62828', fontSize: 12, margin: '10px 2px' }}>{error}</p>}
       </div>
 
-      <div
-        className={`check ${consentData ? 'on' : ''}`}
-        onClick={() => setConsentData((v) => !v)}
-        style={{ flex: 'none' }}
-      >
-        <span className="bx"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
-        <p>Acepto la <span>política de tratamiento de datos personales</span> y autorizo la consulta en centrales de riesgo.</p>
-      </div>
+      {/* Variante 'modal': el check del pie abre el pad en un modal. */}
+      {CONSENT_UI_MODE === 'modal' && consentCard}
 
       <div className="action-bar credit-actions">
         <div className="credit-form-actions">
@@ -328,9 +366,38 @@ export function CreditStudyPage() {
             Solicitar estudio de crédito
             <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
-          <div className="bhelp">Se habilita al validar el NIT, confirmarlo y aceptar el tratamiento de datos</div>
+          <div className="bhelp">Se habilita al validar el NIT, confirmarlo y firmar la autorización de datos</div>
         </div>
       </div>
+
+      {CONSENT_UI_MODE === 'modal' && (
+        <Modal open={showConsent} onClose={() => setShowConsent(false)}>
+          <div className="sectitle">Autorización de datos personales</div>
+          <div className="note" style={{ marginBottom: 13 }}>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            </svg>
+            <p>
+              El cliente autoriza a la empresa a tratar sus datos personales y a consultar centrales de
+              riesgo. La firma queda archivada como documento del expediente.
+            </p>
+          </div>
+          <SignaturePad onChange={setSignatureData} />
+          {consentSigned && (
+            <img className="sigthumb" src={signatureData as string} alt="Firma registrada" />
+          )}
+          <div className="action-bar stacked" style={{ position: 'static', boxShadow: 'none', padding: 0 }}>
+            <button
+              className="btn btn-primary"
+              disabled={!consentSigned}
+              onClick={() => setShowConsent(false)}
+            >
+              {consentSigned ? 'Confirmar autorización' : 'Firme para autorizar'}
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+        </Modal>
+      )}
 
       <Modal open={showFinance} onClose={closeFinanceModal}>
         <div className="sectitle">Evaluación comercial</div>
@@ -381,16 +448,55 @@ export function CreditStudyPage() {
 
         {financeError && <p style={{ color: '#c62828', fontSize: 12, margin: '10px 2px' }}>{financeError}</p>}
 
-        <div className="action-bar stacked" style={{ position: 'static', boxShadow: 'none', padding: 0 }}>
-          <button
-            className="btn btn-primary"
-            disabled={!yearsExperience || !opportunityValue || reliabilityScore === null || submitting}
-            onClick={handleSubmit}
-          >
-            Continuar
-            <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </button>
-        </div>
+        {pendingDecision ? (
+          <div className="note" style={{ marginTop: 4 }}>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 8v5M12 16.5v.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+            <p>
+              {pendingDecision === 'approved'
+                ? `¿Confirmas aprobar $${opportunity.toLocaleString('es-CO')} a ${client?.legalName || client?.fullName}?`
+                : `¿Confirmas rechazar la solicitud de ${client?.legalName || client?.fullName}?`}
+            </p>
+            <div className="rowbtn" style={{ marginTop: 12 }}>
+              <button
+                className="btn btn-primary"
+                disabled={submitting}
+                onClick={() => handleSubmit(pendingDecision)}
+              >
+                {submitting ? 'Enviando…' : pendingDecision === 'approved' ? 'Sí, aprobar' : 'Sí, rechazar'}
+              </button>
+              <button className="btn btn-ghost" disabled={submitting} onClick={() => setPendingDecision(null)}>
+                Volver
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="action-bar stacked" style={{ position: 'static', boxShadow: 'none', padding: 0 }}>
+            <button
+              className="btn btn-green"
+              disabled={!decisionReady || submitting}
+              onClick={() => setPendingDecision('approved')}
+            >
+              Aprobar solicitud
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!decisionReady || submitting}
+              onClick={() => setPendingDecision('rejected')}
+              style={{ background: '#fdecec' }}
+            >
+              Rechazar solicitud
+            </button>
+            <div className="bhelp" style={{ textAlign: 'center' }}>
+              {consentSigned
+                ? 'Responde las 4 preguntas para habilitar la decisión'
+                : 'Falta la firma de autorización del cliente'}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

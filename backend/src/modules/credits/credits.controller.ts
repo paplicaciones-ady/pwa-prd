@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query, ParseUUIDPipe, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Req,
+  UseGuards,
+  Query,
+  ParseUUIDPipe,
+  UseInterceptors,
+} from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../../commons/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../commons/guards/permissions.guard';
 import { Permissions } from '../../commons/decorators/permissions.decorator';
@@ -9,7 +22,6 @@ import { PaginationQueryDto } from '../../commons/dto/pagination.dto';
 import { CreditsService } from './credits.service';
 import { CreateCreditDto } from './dto/create-credit.dto';
 import { StudyCreditDto } from './dto/study-credit.dto';
-import { CreditResultDto } from './dto/credit-result.dto';
 import { CreditStatus } from './entities/credit.entity';
 import { RbacService } from '../rbac/rbac.service';
 
@@ -40,6 +52,16 @@ export class CreditsController {
     return this.service.listDocuments(id, companyId);
   }
 
+  @Get(':id/documents/:documentId/signature')
+  @Permissions('credits.read')
+  documentContent(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('documentId', new ParseUUIDPipe()) documentId: string,
+    @CurrentTenant() companyId: string,
+  ) {
+    return this.service.findDocumentContent(id, documentId, companyId);
+  }
+
   @Get(':id')
   @Permissions('credits.read')
   findOne(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
@@ -48,24 +70,23 @@ export class CreditsController {
 
   @Post('study')
   @Permissions('credits.study')
-  async study(@CurrentTenant() companyId: string, @Body() dto: StudyCreditDto) {
-    return this.service.study(companyId, dto);
+  study(
+    @CurrentTenant() companyId: string,
+    @Body() dto: StudyCreditDto,
+    // IP y user agent los toma el servidor: son parte de la evidencia del
+    // consentimiento y no pueden declararse desde el cliente.
+    @Req() req: Request,
+  ) {
+    return this.service.study(companyId, dto, {
+      ip: req.ip ?? '',
+      userAgent: req.headers['user-agent'] ?? '',
+    });
   }
 
   @Post()
   @Permissions('credits.create')
   create(@CurrentTenant() companyId: string, @Body() dto: CreateCreditDto) {
     return this.service.create(companyId, dto);
-  }
-
-  @Post(':id/result')
-  @Permissions('credits.study')
-  result(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @CurrentTenant() companyId: string,
-    @Body() dto: CreditResultDto,
-  ) {
-    return this.service.result(id, companyId, dto);
   }
 
   @Post(':id/sign')

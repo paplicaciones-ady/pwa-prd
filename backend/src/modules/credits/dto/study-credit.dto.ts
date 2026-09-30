@@ -1,12 +1,17 @@
 import { Type } from 'class-transformer';
 import {
-  IsBoolean,
+  IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   IsUUID,
   Length,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
 } from 'class-validator';
 
 export class StudyCreditDto {
@@ -14,18 +19,54 @@ export class StudyCreditDto {
   clientId: string;
 
   @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  requestedAmount?: number;
-
-  @IsOptional()
   @IsString()
   @Length(1, 20)
   nit?: string;
 
+  // --- Evaluación comercial ---
+  // El API las recibe planas (las contesta un formulario); study() las empaqueta
+  // en el jsonb `study_answers` del crédito.
+
+  @IsIn(['natural', 'juridica'])
+  personType: 'natural' | 'juridica';
+
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  @Type(() => Number)
+  yearsExperience: number;
+
+  @IsNumber()
+  @IsPositive()
+  @Type(() => Number)
+  opportunityValue: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  @Type(() => Number)
+  reliabilityScore: number;
+
+  /**
+   * Veredicto. Lo emite el asesor desde el modal de la evaluación; por ahora no
+   * hay scoring automático, así que no se acepta `decision` ausente.
+   */
+  @IsIn(['approved', 'rejected'])
+  decision: 'approved' | 'rejected';
+
+  /**
+   * Firma manuscrita del cliente como data URL PNG. Obligatoria: es lo que
+   * sustenta el consentimiento, y `consent_data` se deriva de que exista.
+   */
+  @Matches(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/)
+  @MaxLength(400000)
+  consentSignature: string;
+
   @IsOptional()
-  @IsBoolean()
-  consentData?: boolean;
+  @IsNumber()
+  @IsPositive()
+  @Type(() => Number)
+  requestedAmount?: number;
 
   @IsOptional()
   @IsNumber()

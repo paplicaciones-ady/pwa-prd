@@ -33,4 +33,24 @@ export class CreditDocument extends BaseEntity {
 
   @Column({ name: 'signed_at', type: 'timestamp', nullable: true })
   signedAt: Date;
+
+  /**
+   * Contenido del documento cuando es imagen: data URL base64 (`image/png;base64,...`).
+   * `select: false` para que los listados del expediente no arrastren el binario
+   * de cada documento; hay que pedirlo explícito con addSelect().
+   */
+  @Column({ name: 'content_base64', type: 'text', nullable: true, select: false })
+  contentBase64: string;
+
+  @Column({ name: 'content_mime', length: 50, nullable: true })
+  contentMime: string;
+
+  @Column({ name: 'content_sha256', length: 64, nullable: true })
+  contentSha256: string;
+
+  @Column({ length: 45, nullable: true })
+  ip: string;
+
+  @Column({ name: 'user_agent', type: 'text', nullable: true })
+  userAgent: string;
 }

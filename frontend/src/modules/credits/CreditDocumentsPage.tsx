@@ -18,6 +18,9 @@ const DOC_STATUS: Record<string, { text: string; color: string }> = {
   issued: { text: 'Emitido', color: '#1356a0' },
 };
 
+/** Código con el que study() archiva la firma de autorización de datos. */
+const CONSENT_CODE = 'autorizacion_datos';
+
 export function CreditDocumentsPage() {
   const { id } = useParams<{ id: string }>();
   const theme = useTheme();
@@ -25,6 +28,7 @@ export function CreditDocumentsPage() {
   const [applicationNumber, setApplicationNumber] = useState('');
   const [status, setStatus] = useState('');
   const [documents, setDocuments] = useState<DocDetail[]>([]);
+  const [signature, setSignature] = useState<{ dataUrl: string; signedAt: string | null } | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -42,6 +46,24 @@ export function CreditDocumentsPage() {
       .then((res) => setDocuments(res.data))
       .catch(() => setError('No se pudieron cargar los documentos'));
   }, [id]);
+
+  // El binario de la firma no viene en el listado (contentBase64 es select:false):
+  // se pide solo cuando alguien lo abre.
+  const showSignature = (documentId: string, signedAt: string | null) => {
+    if (!id) return;
+    setError('');
+    httpClient
+      .get(`/credits/${id}/documents/${documentId}/signature`)
+      .then((res) => {
+        const { contentBase64, contentMime } = res.data;
+        if (!contentBase64) {
+          setError('Este documento no tiene contenido almacenado');
+          return;
+        }
+        setSignature({ dataUrl: `data:${contentMime || 'image/png'};base64,${contentBase64}`, signedAt });
+      })
+      .catch((err: any) => setError(err?.response?.data?.message?.message || 'No se pudo cargar la firma'));
+  };
 
   const primary = theme.primaryColor;
 
@@ -63,6 +85,24 @@ export function CreditDocumentsPage() {
         </div>
 
         {error && <p style={{ color: '#c62828', fontSize: 12 }}>{error}</p>}
+
+        {signature && (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: 'var(--faint)', marginBottom: 9 }}>
+              FIRMA DE AUTORIZACIÓN
+            </div>
+            <img
+              src={signature.dataUrl}
+              alt="Firma de autorización de datos"
+              style={{ display: 'block', width: '100%', borderRadius: 10, border: '1.5px solid var(--line)' }}
+            />
+            {signature.signedAt && (
+              <div style={{ color: 'var(--faint)', fontSize: 11, marginTop: 8 }}>
+                Registrada el {new Date(signature.signedAt).toLocaleString('es-CO')}
+              </div>
+            )}
+          </div>
+        )}
 
         {documents.length === 0 && !error && (
           <div className="empty-state" style={{ background: 'var(--white)', borderRadius: 16 }}>
@@ -96,19 +136,30 @@ export function CreditDocumentsPage() {
                     : `Código: ${d.code}`}
                 </div>
               </div>
-              <span
-                style={{
-                  flex: 'none',
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  color: st.color,
-                  background: `${st.color}14`,
-                  padding: '4px 10px',
-                  borderRadius: 999,
-                }}
-              >
-                {st.text}
-              </span>
+              {d.code === CONSENT_CODE ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ flex: 'none', minWidth: 0, padding: '7px 12px', fontSize: 11.5 }}
+                  onClick={() => showSignature(d.id, d.signedAt)}
+                >
+                  Ver firma
+                </button>
+              ) : (
+                <span
+                  style={{
+                    flex: 'none',
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: st.color,
+                    background: `${st.color}14`,
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                  }}
+                >
+                  {st.text}
+                </span>
+              )}
             </div>
           );
         })}

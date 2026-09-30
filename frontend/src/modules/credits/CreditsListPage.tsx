@@ -86,9 +86,12 @@ export function CreditsListPage() {
             );
           }
           if (c.status === 'in_study' && has('credits.study')) {
+            // El veredicto se toma en el paso 1 (CreditStudyPage), así que un
+            // crédito 'in_study' solo puede venir del flujo anterior y aquí ya
+            // no se decide: la pantalla de resultado es de solo lectura.
             actions.push(
-              <button key="result" className="btn btn-primary" onClick={() => goTo('result', c.id)}>
-                Decidir
+              <button key="result" className="btn btn-ghost" onClick={() => goTo('result', c.id)}>
+                Ver evaluación
               </button>
             );
           }

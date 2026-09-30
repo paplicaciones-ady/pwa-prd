@@ -1443,6 +1443,69 @@ input, select, textarea {
   .modal-sheet { border-radius: 20px; }
 }
 
+/* ===== Pad de firma (SignaturePad) ===== */
+.sigpad {
+  position: relative;
+  background: var(--white);
+  border: 1.5px dashed #c3cede;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.sigpad-canvas {
+  display: block;
+  width: 100%;
+  /* touch-action: none va inline en el componente: sin él el scroll del
+     contenedor roba el trazo en móvil. */
+  cursor: crosshair;
+}
+.sigpad-hint {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--faint);
+  pointer-events: none;
+}
+.sigpad-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 11px;
+  border-top: 1.5px dashed #c3cede;
+}
+.sigpad-note { font-size: 10.5px; color: var(--faint); }
+.sigpad-clear {
+  border: 1.5px solid var(--line);
+  background: var(--white);
+  color: var(--muted);
+  font-family: var(--body);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.sigpad-clear:active { transform: scale(0.96); }
+
+/* Miniatura de la firma ya capturada dentro de la tarjeta de autorización */
+.sigthumb {
+  display: block;
+  width: 100%;
+  max-height: 74px;
+  object-fit: contain;
+  object-position: left center;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
 .terms {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1964,6 +2027,10 @@ input, select, textarea {
 
 /* Consentimiento de los pasos: en móvil se alinea con el padding del contenido */
 .s2.crflow .check { margin: 0 22px 13px; }
+
+/* Variante 'inline' del consentimiento: el bloque va dentro del cuerpo, así que
+   pierde el margen de 22px que el check del pie necesita para alinearse. */
+.s2.crflow .credit-body .check { margin: 0; }
 
 @media (min-width: 768px) {
   /* Vistas de paso de créditos: el header queda full-bleed (como cualquier
