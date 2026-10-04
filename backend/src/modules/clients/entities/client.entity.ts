@@ -24,12 +24,19 @@ export enum ClientDocumentType {
 
 @Entity('clients')
 export class Client extends BaseEntity {
-  @Column({ name: 'company_id' })
-  companyId: string;
+  /**
+   * NULL = cliente del padrón compartido, visible para todas las empresas.
+   * Es el mismo criterio que usa `modules.companyId` (`Module` en
+   * 1700000012000) y que `module-placements.service.ts:108` expone como
+   * `scope: m.companyId ? 'company' : 'global'`. Un cliente con empresa propia
+   * solo lo ve y administra esa empresa.
+   */
+  @Column({ name: 'company_id', nullable: true })
+  companyId: string | null;
 
-  @ManyToOne(() => Company)
+  @ManyToOne(() => Company, { nullable: true })
   @JoinColumn({ name: 'company_id' })
-  company: Company;
+  company: Company | null;
 
   @Column({ name: 'full_name', length: 200 })
   fullName: string;

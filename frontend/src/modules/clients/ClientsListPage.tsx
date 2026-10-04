@@ -11,6 +11,8 @@ interface Client {
   documentNumber: string;
   documentType?: string;
   status: string;
+  /** null = cliente del padrón compartido, visible para todas las empresas. */
+  companyId?: string | null;
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -28,6 +30,16 @@ function initials(name: string): string {
     .slice(0, 2)
     .join('')
     .toUpperCase();
+}
+
+/**
+ * Un cliente del padrón compartido se puede consultar y usar en cualquier
+ * empresa, pero no editar, desactivar ni eliminar desde una: el backend lo
+ * rechaza con 403 (`ClientsService.ownedByTenant`). Ocultar las acciones acá
+ * evita ofrecer botones que no pueden funcionar.
+ */
+function isShared(c: Client): boolean {
+  return c.companyId == null;
 }
 
 export function ClientsListPage() {
@@ -103,12 +115,20 @@ export function ClientsListPage() {
           </p>
         )}
 
-        {filtered.map((c) => (
+        {filtered.map((c) => {
+          const shared = isShared(c);
+          return (
           <div
             key={c.id}
             className="info-card"
-            style={{ padding: '14px 16px', cursor: 'pointer' }}
-            onClick={() => navigate(`/clients/${c.id}/edit`)}
+            style={{
+              padding: '14px 16px',
+              cursor: shared ? 'default' : 'pointer',
+              opacity: c.status === 'active' ? 1 : 0.72,
+            }}
+            onClick={() => {
+              if (!shared) navigate(`/clients/${c.id}/edit`);
+            }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div
@@ -135,6 +155,22 @@ export function ClientsListPage() {
                   {DOC_TYPE_LABELS[c.documentType || ''] || ''}{c.documentNumber ? ` ${c.documentNumber}` : '· Sin documento'}
                 </div>
               </div>
+              {shared && (
+                <span
+                  title="Cliente del padrón compartido: disponible para todas las empresas"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '3px 9px',
+                    borderRadius: 99,
+                    background: 'var(--accent-soft)',
+                    color: 'var(--accent-deep, var(--accent))',
+                    flex: 'none',
+                  }}
+                >
+                  Compartido
+                </span>
+              )}
               <span
                 style={{
                   fontSize: 11,
@@ -150,6 +186,7 @@ export function ClientsListPage() {
               </span>
             </div>
 
+            {!shared && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
               <Can permission="clients.update" permissions={ctx.permissions}>
                 <button
@@ -174,8 +211,10 @@ export function ClientsListPage() {
                 </button>
               </Can>
             </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <Can permission="clients.create" permissions={ctx.permissions}>
