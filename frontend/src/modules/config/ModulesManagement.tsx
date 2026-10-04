@@ -3,6 +3,7 @@ import { httpClient } from '../../shared/api/httpClient';
 import { useAuth, ModuleView, ModuleVariant, CompanySummary } from '../auth/AuthContext';
 import { ModuleForm } from './ModuleForm';
 import { ModuleVariantForm } from './ModuleVariantForm';
+import { isRegisteredPath } from '../registry';
 
 interface Props {
   mode: 'company' | 'global';
@@ -206,6 +207,9 @@ export function ModulesManagement({ mode }: Props) {
                       {m.label}
                       {m.scope === 'global' && (
                         <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--accent-soft)', color: 'var(--accent-deep)', borderRadius: 99, padding: '2px 8px' }}>global</span>
+                      )}
+                      {!isRegisteredPath(m.path) && (
+                        <span title="El path no corresponde a ninguna pantalla de modules/registry" style={{ marginLeft: 8, fontSize: 10, background: '#fde8ea', color: '#b00020', borderRadius: 99, padding: '2px 8px' }}>ruta inexistente</span>
                       )}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--faint)' }}>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { httpClient } from '../../shared/api/httpClient';
 import { ModuleView, ModuleVariant } from '../auth/AuthContext';
+import { ModulePathSelect } from './ModulePathSelect';
 
 interface Props {
   module: ModuleView;
@@ -94,7 +95,7 @@ export function ModuleVariantForm({ module, company, existing, onSaved, onCancel
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Path (opcional)</label>
-          <input className="inp" value={path} onChange={(e) => setPath(e.target.value)} placeholder="Por defecto: del módulo" />
+          <ModulePathSelect value={path} onChange={(p) => setPath(p)} emptyLabel={`Por defecto: ${module.path}`} />
         </div>
       </div>
       <div className="field">

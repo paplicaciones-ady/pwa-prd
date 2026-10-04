@@ -6,9 +6,10 @@ import {
   IsArray,
   ValidateNested,
   IsUUID,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OperationItemDto } from './create-module.dto';
+import { MODULE_PATH_MESSAGE, MODULE_PATH_REGEX, OperationItemDto } from './create-module.dto';
 
 export class UpdateModuleDto {
   @IsBoolean()
@@ -32,6 +33,7 @@ export class UpdateModuleDto {
   @IsString()
   @IsOptional()
   @MaxLength(200)
+  @Matches(MODULE_PATH_REGEX, { message: MODULE_PATH_MESSAGE })
   path?: string;
 
   @IsBoolean()

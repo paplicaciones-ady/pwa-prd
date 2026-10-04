@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { httpClient } from '../../shared/api/httpClient';
 import { ModuleView, CompanySummary } from '../auth/AuthContext';
+import { FrontendModule, findModule, isRegisteredPath } from '../registry';
+import { ModulePathSelect } from './ModulePathSelect';
 
 export interface ModuleFormValue {
   key: string;
@@ -74,6 +76,18 @@ export function ModuleForm({ mode, editing, superMode, companies, defaultCompany
 
   const prefill = () => set({ operations: [...CRUD_OPS] });
 
+  // `module` siempre sale del registro: es el dueño de la pantalla elegida
+  // (= @Controller del backend), así no puede quedar desalineado del path.
+  const pickPath = (path: string, owner: FrontendModule | undefined) => {
+    if (mode === 'create') {
+      set({ path, module: owner?.module ?? '', label: value.label || owner?.label || '' });
+    } else {
+      set({ path });
+    }
+  };
+  const pathOwner = findModule(value.module);
+  const pathMismatch = mode === 'edit' && !!value.path && isRegisteredPath(value.path) && !pathOwner?.routes.some((r) => r.path === value.path);
+
   const addOperation = () => {
     const existing = value.operations.map((o) => o.action);
     const picked = CRUD_OPS.find((o) => !existing.includes(o.action)) || { action: 'leer_detalles', name: 'Ver detalles' };
@@ -93,7 +107,11 @@ export function ModuleForm({ mode, editing, superMode, companies, defaultCompany
   const save = async () => {
     setError('');
     if (!value.key.trim() || !value.module.trim() || !value.label.trim() || !value.path.trim()) {
-      setError('Completá key, módulo backend, nombre visible y path.');
+      setError('Completá key, pantalla (path), nombre visible y módulo backend.');
+      return;
+    }
+    if (mode === 'create' && !isRegisteredPath(value.path)) {
+      setError('El path debe ser una pantalla registrada en el frontend (modules/registry).');
       return;
     }
     if (value.operations.length === 0) {
@@ -206,29 +224,34 @@ export function ModuleForm({ mode, editing, superMode, companies, defaultCompany
 
       <div className="row2">
         <div className="field" style={{ flex: 1 }}>
-          <label>Key</label>
-          <input className="inp" value={value.key} onChange={(e) => set({ key: e.target.value })} placeholder="Ej: creditos" disabled={mode === 'edit'} />
+          <label>Pantalla (path frontend)</label>
+          <ModulePathSelect value={value.path} onChange={pickPath} />
+          {pathMismatch && (
+            <p style={{ color: '#b00020', fontSize: 11, marginTop: 4 }}>
+              ⚠️ Esta pantalla pertenece a otro módulo: se pedirán permisos de ese módulo, no de <code>{value.module}.*</code>.
+            </p>
+          )}
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Módulo backend (recurso)</label>
-          <input className="inp" value={value.module} onChange={(e) => set({ module: e.target.value })} placeholder="Ej: credits" disabled={mode === 'edit'} />
+          <input className="inp" value={value.module} placeholder="Se completa al elegir la pantalla" disabled />
         </div>
       </div>
       <div className="row2">
         <div className="field" style={{ flex: 1 }}>
-          <label>Nombre visible</label>
-          <input className="inp" value={value.label} onChange={(e) => set({ label: e.target.value })} placeholder="Ej: Créditos" />
+          <label>Key</label>
+          <input className="inp" value={value.key} onChange={(e) => set({ key: e.target.value })} placeholder="Ej: creditos" disabled={mode === 'edit'} />
         </div>
         <div className="field" style={{ flex: 1 }}>
-          <label>Path (ruta frontend)</label>
-          <input className="inp" value={value.path} onChange={(e) => set({ path: e.target.value })} placeholder="Ej: /credits" />
+          <label>Nombre visible</label>
+          <input className="inp" value={value.label} onChange={(e) => set({ label: e.target.value })} placeholder="Ej: Créditos" />
         </div>
       </div>
       <div className="field">
         <label>Ícono (URL o clave existente)</label>
         <input className="inp" value={value.icon} onChange={(e) => set({ icon: e.target.value })} placeholder="https://.../logo.png  o  creditos" />
         <p style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4 }}>
-          ℹ️ El ícono se muestra en el Home/FAB y enlaza al <strong>path definido en este formulario</strong> (el home del módulo).
+          ℹ️ El ícono se muestra en el Home/FAB y enlaza a la <strong>pantalla elegida</strong> (normalmente el home del módulo). Solo se listan pantallas registradas en <code>modules/registry</code>.
         </p>
       </div>
 

@@ -133,7 +133,7 @@ export class ModulePlacementsService {
   async findByCompany(companyId: string) {
     const rows = await this.assignmentRepo.find({
       where: { companyId },
-      relations: { module: true },
+      relations: { module: { company: true } },
       order: { position: 'ASC' },
     });
 
@@ -149,6 +149,13 @@ export class ModulePlacementsService {
         const v = byModule.get(a.moduleId);
         return {
           ...base,
+          companyId: a.module.companyId,
+          theme: a.module.company
+            ? {
+                primaryColor: a.module.company.primaryColor,
+                logoUrl: a.module.company.logoUrl,
+              }
+            : null,
           label: v?.label ?? base.label,
           icon: v?.icon ?? base.icon,
           path: v?.path ?? base.path,
