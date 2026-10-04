@@ -28,40 +28,57 @@ export function calcNitDv(body: string): string {
 }
 
 /**
- * Solo los 9 dígitos del NIT, sin el de verificación. `clients.document_number`
- * no guarda el DV, así que la búsqueda y las comparaciones deben usar esto.
+ * ¿`value` es `documentNumber` seguido de un dígito (el DV)? Sirve para que la
+ * búsqueda encuentre al cliente cuando ya se digitó el NIT completo:
+ * `clients.document_number` no guarda el DV.
  */
-export function stripNitDv(value: string): string {
-  return (value.match(/\d/g) ?? []).join('').slice(0, 9);
+export function isDocumentWithDv(value: string, documentNumber: string): boolean {
+  return value.length === documentNumber.length + 1 && value.startsWith(documentNumber);
 }
 
 /**
- * Valida el NIT digitado en el flujo de crédito: 9 dígitos de cuerpo más el
- * dígito de verificación, obligatorio. El crédito guarda el NIT con DV y el
- * backend vuelve a comprobarlo (backend/src/modules/credits/nit.ts).
- *
- * Nota: la DIAN también emite NIT de 8 dígitos. Acá se exige cuerpo de 9
- * porque es lo que devuelve `clients.document_number` en la búsqueda; si
- * empiezan a aparecer NIT de 8, hay que relajar la longitud mínima.
+ * Cuerpo del NIT (sin DV) para prellenar la creación de un cliente: si el
+ * último dígito es un DV válido se quita; si no, se asume que aún no se digitó.
  */
-export function validateNit(value: string): NitValidation {
+export function nitBody(value: string): string {
+  if (value.length > NIT_MIN_DIGITS && calcNitDv(value.slice(0, -1)) === value.slice(-1)) {
+    return value.slice(0, -1);
+  }
+  return value;
+}
+
+/**
+ * Valida el NIT digitado en el flujo de crédito: documento + dígito de
+ * verificación, obligatorio. El cuerpo tiene la longitud del documento (la
+ * DIAN admite de 8 a 15 dígitos: NIT de empresa de 9, cédulas de 8 o 10…).
+ *
+ * Con cliente seleccionado se valida contra su documento, que es el único modo
+ * de saber dónde termina el cuerpo. Sin cliente solo se valida la forma. El
+ * backend vuelve a comprobarlo (backend/src/modules/credits/nit.ts).
+ */
+export function validateNit(value: string, documentNumber?: string): NitValidation {
   if (!/^\d*$/.test(value)) {
     return { ok: false, error: 'El NIT solo puede contener dígitos.' };
   }
   if (value.length === 0) {
     return { ok: false, error: 'Ingresa el NIT del cliente.' };
   }
-  if (value.length < 9) {
-    return { ok: false, error: 'El NIT debe tener 9 dígitos, más el de verificación.' };
+  if (!documentNumber) {
+    return value.length > NIT_MIN_DIGITS && value.length <= NIT_MAX_DIGITS + 1
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'El NIT debe ser el documento del cliente más el dígito de verificación.' };
   }
-  if (value.length === 9) {
+  if (value === documentNumber) {
     return { ok: false, error: 'Falta el dígito de verificación (DV).' };
   }
-  if (value.length > 10) {
-    return { ok: false, error: 'El NIT no puede tener más de 10 dígitos.' };
+  if (!isDocumentWithDv(value, documentNumber)) {
+    return { ok: false, error: 'El NIT no corresponde al documento del cliente seleccionado.' };
   }
-  const expected = calcNitDv(value.slice(0, 9));
-  return expected === value[9]
+  const expected = calcNitDv(documentNumber);
+  if (!expected) {
+    return { ok: false, error: 'El documento del cliente no tiene una longitud de NIT válida.' };
+  }
+  return expected === value.slice(-1)
     ? { ok: true, error: '' }
     : { ok: false, error: `El dígito de verificación es ${expected}. Revisa el NIT.` };
 }

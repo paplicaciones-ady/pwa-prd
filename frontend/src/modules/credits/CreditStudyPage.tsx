@@ -8,7 +8,7 @@ import { ScaleInput } from '../../shared/components/ScaleInput';
 import { SignaturePad } from '../../shared/components/SignaturePad';
 import { httpClient } from '../../shared/api/httpClient';
 import { useTheme } from '../../shared/theme/ThemeContext';
-import { stripNitDv, validateNit } from '../../shared/utils/validators';
+import { isDocumentWithDv, nitBody, validateNit } from '../../shared/utils/validators';
 import { CONSENT_UI_MODE } from './consentUiMode';
 
 type PersonType = 'natural' | 'juridica';
@@ -52,12 +52,11 @@ export function CreditStudyPage() {
 
   const canCreateClient = moduleContexts['clients']?.permissions.includes('clients.create') ?? false;
 
-  const nitCheck = validateNit(nit);
+  const nitCheck = validateNit(nit, client?.documentNumber);
   const confirmMatches = nit.length > 0 && nitConfirm === nit;
-  const nitDigits = stripNitDv(nit);
 
   useEffect(() => {
-    if (nitDigits.length >= 3) {
+    if (nit.length >= 3) {
       setSearching(true);
       setError('');
       setResults([]);
@@ -68,7 +67,9 @@ export function CreditStudyPage() {
           setResults(
             list.filter(
               (c) =>
-                c.documentNumber.includes(nitDigits) &&
+                // El documento no guarda el DV: con el NIT completo, la
+                // coincidencia es "documento + 1 dígito".
+                (c.documentNumber.includes(nit) || isDocumentWithDv(nit, c.documentNumber)) &&
                 (c.personType ?? 'natural') === personType,
             ),
           );
@@ -83,14 +84,14 @@ export function CreditStudyPage() {
       setResults([]);
       setClient(null);
     }
-  }, [nitDigits, personType]);
+  }, [nit, personType]);
 
   const selectClient = (c: ClientLookup) => {
     setClient(c);
     setError('');
   };
 
-  const goCreateClient = () => navigate(`/clients/new?nit=${nitDigits}`);
+  const goCreateClient = () => navigate(`/clients/new?nit=${nitBody(nit)}`);
 
   const openFinanceModal = () => {
     setError('');
@@ -237,13 +238,13 @@ export function CreditStudyPage() {
           <label>
             NIT{' '}
             <span style={{ color: 'var(--faint)', fontWeight: 600 }}>
-              {nitDigits.length < 3 ? 'Digita 3+ dígitos' : searching ? 'Consultando…' : client ? 'Encontrado' : results.length > 0 ? `${results.length} coincidencia(s)` : 'Sin registro'}
+              {nit.length < 3 ? 'Digita 3+ dígitos' : searching ? 'Consultando…' : client ? 'Encontrado' : results.length > 0 ? `${results.length} coincidencia(s)` : 'Sin registro'}
             </span>
           </label>
           <input
             className="inp"
             inputMode="numeric"
-            maxLength={10}
+            maxLength={16}
             value={nit}
             onChange={(e) => {
               setNit(e.target.value.replace(/\D/g, ''));
@@ -257,7 +258,7 @@ export function CreditStudyPage() {
             {nitError ? (
               <span style={{ color: '#c62828', fontWeight: 600 }}>{nitError}</span>
             ) : (
-              '9 dígitos más el de verificación. La búsqueda es parcial e inicia desde los 3 dígitos.'
+              'Documento del cliente más el dígito de verificación (DV). La búsqueda inicia desde los 3 dígitos.'
             )}
           </div>
         </div>
@@ -267,7 +268,7 @@ export function CreditStudyPage() {
           <input
             className="inp"
             inputMode="numeric"
-            maxLength={10}
+            maxLength={16}
             value={nitConfirm}
             onChange={(e) => {
               setNitConfirm(e.target.value.replace(/\D/g, ''));
@@ -286,18 +287,18 @@ export function CreditStudyPage() {
           </div>
         </div>
 
-        {nitDigits.length < 3 && (
+        {nit.length < 3 && (
           <div className="empty" style={{ background: '#fff', border: '1.5px dashed #dbe4ef', borderRadius: 16, textAlign: 'center', padding: '26px 16px', marginBottom: 13 }}>
             <svg viewBox="0 0 24 24" fill="none" width="30" height="30" color="#c3cede"><path d="M4 20V9l8-5 8 5v11" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M9 20v-6h6v6" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
             <div>Esperando el NIT para consultar los datos del cliente</div>
           </div>
         )}
 
-        {nitDigits.length >= 3 && searching && (
+        {nit.length >= 3 && searching && (
           <p style={{ color: 'var(--muted)', fontSize: 12, padding: '15px 3px' }}>Consultando…</p>
         )}
 
-        {nitDigits.length >= 3 && !searching && !client && results.length > 0 && (
+        {nit.length >= 3 && !searching && !client && results.length > 0 && (
           <div>
             <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: 'var(--faint)', margin: '6px 2px 10px' }}>SELECCIONA UN CLIENTE</div>
             {results.map((c) => (
@@ -339,10 +340,10 @@ export function CreditStudyPage() {
           </>
         )}
 
-        {nitDigits.length >= 3 && !searching && !client && results.length === 0 && (
+        {nit.length >= 3 && !searching && !client && results.length === 0 && (
           <div className="card" style={{ textAlign: 'center', borderColor: '#f6caca', background: '#fdecec' }}>
             <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: '#b00020', marginBottom: 9 }}>CLIENTE NO ENCONTRADO</div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>No existe un cliente registrado que coincida con {nitDigits}.</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>No existe un cliente registrado que coincida con {nit}.</div>
             {canCreateClient ? (
               <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={goCreateClient}>
                 Crear cliente <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" /></svg>

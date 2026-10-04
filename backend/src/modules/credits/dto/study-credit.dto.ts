@@ -20,11 +20,11 @@ export class StudyCreditDto {
   clientId: string;
 
   /**
-   * NIT con dígito de verificación: 9 dígitos + DV, sin separadores. study()
-   * comprueba el DV y que el cuerpo sea el documento del cliente, y lo guarda
-   * como `900123456-7`.
+   * NIT con dígito de verificación: documento del cliente (8 a 15 dígitos) +
+   * DV, sin separadores. study() comprueba que el cuerpo sea el documento del
+   * cliente y el DV, y lo guarda como `900123456-7`.
    */
-  @Matches(/^\d{10}$/, { message: 'El NIT debe tener 9 dígitos más el dígito de verificación' })
+  @Matches(/^\d{9,16}$/, { message: 'El NIT debe ser el documento del cliente más el dígito de verificación' })
   nit: string;
 
   // --- Evaluación comercial (cada pregunta tiene su columna en credits) ---
