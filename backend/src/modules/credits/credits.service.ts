@@ -8,6 +8,14 @@ import { ClientsService } from '../clients/clients.service';
 import { clampPagination } from '../../commons/dto/pagination.dto';
 import { CreateCreditDto } from './dto/create-credit.dto';
 import { StudyCreditDto } from './dto/study-credit.dto';
+import { normalizeNitWithDv } from './nit';
+
+/**
+ * Cupo de todo crédito aprobado manualmente por el asesor. Fijo mientras no
+ * exista un scoring que lo calcule; cuando se conecte, el cupo vendrá de esa
+ * corrida (ver `decision_run_id` / `vendor_id`).
+ */
+const APPROVED_LIMIT = 2_000_000;
 
 const SIGNATURE_PREFIX = 'data:image/png;base64,';
 const SIGNATURE_MIME = 'image/png';
@@ -79,6 +87,7 @@ export class CreditsService {
    */
   async study(companyId: string, dto: StudyCreditDto, audit: StudyAudit) {
     const client = await this.ensureClientInTenant(dto.clientId, companyId);
+    const nit = normalizeNitWithDv(dto.nit, client.documentNumber ?? '');
     const signature = decodeSignature(dto.consentSignature);
     const approved = dto.decision === 'approved';
 
@@ -97,17 +106,15 @@ export class CreditsService {
           // undefined (no null): las columnas son nullable pero los campos de la
           // entidad no admiten null bajo strictNullChecks, y omitir la clave deja
           // la columna en su default.
-          approvedLimit: approved ? dto.opportunityValue : undefined,
+          approvedLimit: approved ? APPROVED_LIMIT : undefined,
           applicationNumber: approved ? this.generateApplicationNumber(creditId) : undefined,
-          nit: dto.nit ?? client.documentNumber,
+          nit,
           // Derivado de la existencia de la firma, no de lo que diga el cliente.
           consentData: true,
-          studyAnswers: {
-            personType: dto.personType,
-            yearsExperience: dto.yearsExperience,
-            opportunityValue: dto.opportunityValue,
-            reliabilityScore: dto.reliabilityScore,
-          },
+          personType: dto.personType,
+          yearsExperience: dto.yearsExperience,
+          opportunityValue: dto.opportunityValue,
+          reliabilityScore: dto.reliabilityScore,
           status: approved ? CreditStatus.APPROVED : CreditStatus.REJECTED,
           decisionAt: signedAt,
           // decisionRunId y vendor_id quedan en NULL: el scoring externo aún no
@@ -227,6 +234,15 @@ export class CreditsService {
   async updateStatus(id: string, companyId: string, status: CreditStatus) {
     const credit = await this.findOne(id, companyId);
     credit.status = status;
+    // La aprobación manual (PATCH :id/approve) recibe el mismo cupo fijo que la
+    // del estudio, y el radicado si aún no lo tenía.
+    if (status === CreditStatus.APPROVED) {
+      credit.approvedLimit ??= APPROVED_LIMIT;
+      credit.applicationNumber ??= this.generateApplicationNumber(credit.id);
+    }
+    if (status === CreditStatus.APPROVED || status === CreditStatus.REJECTED) {
+      credit.decisionAt ??= new Date();
+    }
     return this.repo.save(credit);
   }
 

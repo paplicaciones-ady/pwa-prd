@@ -128,7 +128,8 @@ export function CreditStudyPage() {
     try {
       const res = await httpClient.post('/credits/study', {
         clientId: client.id,
-        nit: nitDigits,
+        // Con DV: el backend lo verifica y lo guarda como 900123456-7.
+        nit,
         personType,
         yearsExperience: Number(yearsExperience),
         opportunityValue: Number(opportunityValue),

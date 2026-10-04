@@ -13,6 +13,11 @@ interface CreditDetail {
   status: string;
   nit: string | null;
   decisionAt: string | null;
+  personType: 'natural' | 'juridica' | null;
+  yearsExperience: number | null;
+  opportunityValue: number | null;
+  reliabilityScore: number | null;
+  /** Solo créditos creados cuando las respuestas vivían en jsonb. */
   studyAnswers: Record<string, unknown> | null;
   client?: {
     id: string;
@@ -66,7 +71,15 @@ export function CreditResultPage() {
   const isRejected = credit.status === 'rejected';
   const approvedLimit = Number(credit.approvedLimit ?? credit.requestedAmount);
   const decidedAt = credit.decisionAt ? new Date(credit.decisionAt).toLocaleString('es-CO') : null;
-  const answers = credit.studyAnswers ?? {};
+  // Las respuestas viven en columnas; studyAnswers solo cubre créditos antiguos
+  // por si la migración no alcanzó a trasladarlas.
+  const legacy = credit.studyAnswers ?? {};
+  const answers = {
+    personType: credit.personType ?? legacy.personType,
+    yearsExperience: credit.yearsExperience ?? legacy.yearsExperience,
+    opportunityValue: credit.opportunityValue ?? legacy.opportunityValue,
+    reliabilityScore: credit.reliabilityScore ?? legacy.reliabilityScore,
+  };
 
   return (
     <div className="s2 crflow">
@@ -97,6 +110,8 @@ export function CreditResultPage() {
         <div className="card">
           <div className="stk"><div className="k">Radicado</div><div className="v">{credit.applicationNumber || '—'}</div></div>
           <div className="stk"><div className="k">Decidido</div><div className="v">{decidedAt || '—'}</div></div>
+          <div className="stk"><div className="k">NIT</div><div className="v">{credit.nit || '—'}</div></div>
+          <div className="stk"><div className="k">Tipo de persona</div><div className="v">{answers.personType === 'juridica' ? 'Jurídica' : answers.personType === 'natural' ? 'Natural' : '—'}</div></div>
           <div className="stk"><div className="k">Años de experiencia</div><div className="v">{String(answers.yearsExperience ?? '—')}</div></div>
           <div className="stk"><div className="k">Valor de la oportunidad</div><div className="v">${Number(answers.opportunityValue ?? 0).toLocaleString('es-CO')}</div></div>
           <div className="stk"><div className="k">Confiabilidad</div><div className="v">{answers.reliabilityScore ? `${answers.reliabilityScore} de 5` : '—'}</div></div>

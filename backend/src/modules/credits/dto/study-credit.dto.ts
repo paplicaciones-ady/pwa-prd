@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsEnum,
   IsIn,
   IsInt,
   IsNumber,
@@ -7,28 +8,29 @@ import {
   IsPositive,
   IsString,
   IsUUID,
-  Length,
   Matches,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
+import { ClientPersonType } from '../../clients/entities/client.entity';
 
 export class StudyCreditDto {
   @IsUUID()
   clientId: string;
 
-  @IsOptional()
-  @IsString()
-  @Length(1, 20)
-  nit?: string;
+  /**
+   * NIT con dígito de verificación: 9 dígitos + DV, sin separadores. study()
+   * comprueba el DV y que el cuerpo sea el documento del cliente, y lo guarda
+   * como `900123456-7`.
+   */
+  @Matches(/^\d{10}$/, { message: 'El NIT debe tener 9 dígitos más el dígito de verificación' })
+  nit: string;
 
-  // --- Evaluación comercial ---
-  // El API las recibe planas (las contesta un formulario); study() las empaqueta
-  // en el jsonb `study_answers` del crédito.
+  // --- Evaluación comercial (cada pregunta tiene su columna en credits) ---
 
-  @IsIn(['natural', 'juridica'])
-  personType: 'natural' | 'juridica';
+  @IsEnum(ClientPersonType)
+  personType: ClientPersonType;
 
   @IsInt()
   @Min(0)
@@ -36,7 +38,8 @@ export class StudyCreditDto {
   @Type(() => Number)
   yearsExperience: number;
 
-  @IsNumber()
+  /** Entero en pesos: la columna es bigint. */
+  @IsInt()
   @IsPositive()
   @Type(() => Number)
   opportunityValue: number;
@@ -49,7 +52,8 @@ export class StudyCreditDto {
 
   /**
    * Veredicto. Lo emite el asesor desde el modal de la evaluación; por ahora no
-   * hay scoring automático, así que no se acepta `decision` ausente.
+   * hay scoring automático, así que no se acepta `decision` ausente. El cupo de
+   * un crédito aprobado es fijo (ver APPROVED_LIMIT en credits.service.ts).
    */
   @IsIn(['approved', 'rejected'])
   decision: 'approved' | 'rejected';

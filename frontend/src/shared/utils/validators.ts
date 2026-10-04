@@ -36,8 +36,9 @@ export function stripNitDv(value: string): string {
 }
 
 /**
- * Valida el NIT digitado en el flujo de crédito: 9 dígitos de cuerpo y,
- * opcionalmente, un 10º que sea el dígito de verificación correcto.
+ * Valida el NIT digitado en el flujo de crédito: 9 dígitos de cuerpo más el
+ * dígito de verificación, obligatorio. El crédito guarda el NIT con DV y el
+ * backend vuelve a comprobarlo (backend/src/modules/credits/nit.ts).
  *
  * Nota: la DIAN también emite NIT de 8 dígitos. Acá se exige cuerpo de 9
  * porque es lo que devuelve `clients.document_number` en la búsqueda; si
@@ -54,7 +55,7 @@ export function validateNit(value: string): NitValidation {
     return { ok: false, error: 'El NIT debe tener 9 dígitos, más el de verificación.' };
   }
   if (value.length === 9) {
-    return { ok: true, error: '' };
+    return { ok: false, error: 'Falta el dígito de verificación (DV).' };
   }
   if (value.length > 10) {
     return { ok: false, error: 'El NIT no puede tener más de 10 dígitos.' };

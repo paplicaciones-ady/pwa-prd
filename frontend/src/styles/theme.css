@@ -1658,8 +1658,11 @@ input, select, textarea {
 /* ===== Flujo de crédito: acciones fijas al pie de pantalla (móvil) ===== */
 @media (max-width: 559.98px) {
   .s2.flow {
-    height: 100vh;
-    height: 100dvh;
+    /* La topbar sticky ocupa --topbar-h encima de .s2: con 100dvh a secas la
+       página quedaba 61px más alta que la pantalla (doble scroll y botones de
+       acción cortados abajo). */
+    height: calc(100vh - var(--topbar-h));
+    height: calc(100dvh - var(--topbar-h));
     min-height: 0;
   }
   .s2.flow .credit-body {
@@ -2009,6 +2012,10 @@ input, select, textarea {
     min-height: 100%;
   }
   .navbar { display: none; }
+  /* Sin topbar visible su alto es 0: si no, .appbar (sticky, top: var(--topbar-h))
+     se desplazaba 61px hacia abajo en escritorio, y los min-height que descuentan
+     la topbar dejaban las pantallas 61px más cortas. */
+  :root { --topbar-h: 0px; }
   .tabbar { display: none; }
   .body {
     padding-bottom: 40px;

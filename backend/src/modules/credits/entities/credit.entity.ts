@@ -1,7 +1,7 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany, ValueTransformer } from 'typeorm';
 import { BaseEntity } from '../../../commons/entities/base.entity';
 import { Company } from '../../config/entities/company.entity';
-import { Client } from '../../clients/entities/client.entity';
+import { Client, ClientPersonType } from '../../clients/entities/client.entity';
 import { CreditDocument } from './credit-document.entity';
 
 export enum CreditStatus {
@@ -12,6 +12,16 @@ export enum CreditStatus {
   SIGNED = 'signed',
   DISBURSED = 'disbursed',
 }
+
+/**
+ * El driver `pg` devuelve bigint como string. Sin este transformer
+ * `opportunityValue` llega como texto al front y a cualquier cálculo
+ * (NaN silencioso). Ver migración 1700000020000.
+ */
+const bigintAsNumber: ValueTransformer = {
+  to: (value?: number | null) => (value == null ? null : value),
+  from: (value?: string | null) => (value == null ? null : Number(value)),
+};
 
 @Entity('credits')
 export class Credit extends BaseEntity {
@@ -38,6 +48,7 @@ export class Credit extends BaseEntity {
   @Column({ name: 'application_number', length: 30, nullable: true })
   applicationNumber: string;
 
+  /** NIT con dígito de verificación, formato `900123456-7`. */
   @Column({ length: 20, nullable: true })
   nit: string;
 
@@ -47,18 +58,42 @@ export class Credit extends BaseEntity {
   // de la firma (ver credits.service.ts), porque un booleano que el front
   // puede mandar en `true` no prueba que nadie haya firmado nada.
 
+  // --- Evaluación comercial (paso 1 del estudio) ---
+
+  @Column({ name: 'person_type', type: 'enum', enum: ClientPersonType, enumName: 'credits_person_type_enum', nullable: true })
+  personType: ClientPersonType;
+
+  /** Años de experiencia del solicitante en el mercado. */
+  @Column({ name: 'years_experience', type: 'int', nullable: true })
+  yearsExperience: number;
+
+  /** Monto en pesos que el asesor dimensiona como oportunidad. Entero, sin decimales. */
+  @Column({ name: 'opportunity_value', type: 'bigint', nullable: true, transformer: bigintAsNumber })
+  opportunityValue: number;
+
+  /** Juicio del asesor que conoce al cliente: 1 no paga, 5 paga. */
+  @Column({ name: 'reliability_score', type: 'int', nullable: true })
+  reliabilityScore: number;
+
   @Column({ name: 'approved_limit', type: 'decimal', precision: 12, scale: 2, nullable: true })
   approvedLimit: number;
 
+  /**
+   * @deprecated Ya no se piden en el flujo de estudio (ver CreditStudyPage).
+   * Se conservan por compatibilidad con los créditos históricos.
+   */
   @Column({ name: 'monthly_income', type: 'decimal', precision: 14, scale: 2, nullable: true })
   monthlyIncome: number;
 
+  /** @deprecated Ver {@link Credit.monthlyIncome}. */
   @Column({ name: 'monthly_expenses', type: 'decimal', precision: 14, scale: 2, nullable: true })
   monthlyExpenses: number;
 
+  /** @deprecated Ver {@link Credit.monthlyIncome}. */
   @Column({ name: 'assets_value', type: 'decimal', precision: 14, scale: 2, nullable: true })
   assetsValue: number;
 
+  /** @deprecated Ver {@link Credit.monthlyIncome}. */
   @Column({ name: 'liabilities_value', type: 'decimal', precision: 14, scale: 2, nullable: true })
   liabilitiesValue: number;
 
@@ -66,9 +101,9 @@ export class Credit extends BaseEntity {
   foundationDate: string;
 
   /**
-   * Respuestas de la evaluación comercial en un único jsonb
-   * ({ personType, yearsExperience, opportunityValue, reliabilityScore, ... }).
-   * Agregar una pregunta al cuestionario no requiere otra columna.
+   * @deprecated Solo lectura. Guardó las respuestas de la evaluación mientras
+   * vivieron en jsonb; la migración 1700000020000 las trasladó a las columnas
+   * de arriba, que son las que se escriben ahora.
    */
   @Column({ name: 'study_answers', type: 'jsonb', nullable: true })
   studyAnswers: Record<string, unknown>;
