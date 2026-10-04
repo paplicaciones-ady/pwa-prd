@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { isRegisteredPath } from '../registry';
 
 const ICONS: Record<string, React.ReactNode> = {
   cliente: (
@@ -99,6 +100,18 @@ export function HomePage() {
     const mods = new Set(placements.map((p) => p.module));
     mods.forEach((m) => loadModuleContext(m).catch(() => undefined));
   }, [placements.length]);
+
+  // DEV: avisa de tiles cuyo path (BD) no tiene pantalla en modules/registry.
+  // En prod se muestran igual para no ocultar módulos por un error de config.
+  const orphanTiles = visible
+    .filter((p) => !isRegisteredPath(p.path))
+    .map((p) => `"${p.label}" (${p.module}) → ${p.path}`)
+    .join(', ');
+  useEffect(() => {
+    if (import.meta.env.DEV && orphanTiles) {
+      console.warn(`[modules] tiles sin pantalla en modules/registry: ${orphanTiles}`);
+    }
+  }, [orphanTiles]);
 
   const icon = (p: { key: string; icon: string | null }) => {
     const url = p.icon && p.icon.startsWith('http') ? p.icon : null;

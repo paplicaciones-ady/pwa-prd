@@ -199,6 +199,14 @@ El **bootstrap** (`/me/bootstrap`) aplica la variante de la empresa sobre cada p
 
 ## 5. Frontend
 
+> Paso a paso para dar de alta un módulo nuevo: [MODULE-GUIDE.md](MODULE-GUIDE.md).
+
+- **Registro de módulos** (`frontend/src/modules/registry/`): cada módulo declara sus pantallas en
+  `modules/<carpeta>/<carpeta>.routes.tsx` (`module`, `basePath`, `routes[{path, perm, element}]`).
+  `App.tsx` genera las `<Route>` (con `RequirePerm`) desde `MODULES`, y `ModuleForm` /
+  `ModuleVariantForm` solo ofrecen esas rutas como `path` (selector `ModulePathSelect`), por lo que
+  `modules.path` no puede apuntar a una pantalla inexistente. En DEV, `validateRegistry()` rompe el
+  arranque ante duplicados o permisos sin prefijo del módulo.
 - `AuthContext` expone `scope`, `companies`, `enterCompany/exitCompany`, `isSuperAccount`,
   `refreshBootstrap`, `moduleContexts` (`/{module}/context` + `Can`).
 - `LoginPage` sin selector de empresas (gradiente `#1356a0 → #0c3567`).
