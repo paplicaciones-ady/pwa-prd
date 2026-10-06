@@ -1,5 +1,15 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+/**
+ * Créditos tiene una sola empresa dueña (Adylog) y se habilita en las demás
+ * mediante asignaciones. module_placements traía una fila por empresa y el
+ * backfill 1:1 de abajo creaba una copia del módulo por empresa, cada una
+ * "dueña" de la suya. Ver también 1700000021000-CreditsSingleOwner, que
+ * consolida las BD que ya habían ejecutado la versión anterior.
+ */
+const CREDITS_KEY = 'creditos';
+const CREDITS_OWNER = '22222222-2222-2222-8222-222222222222'; // Adylog
+
 export class ModuleSystem1700000012000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Tabla de definición de módulos (company_id NULL = módulo global)
@@ -67,15 +77,22 @@ export class ModuleSystem1700000012000 implements MigrationInterface {
              )),
              mp.flag, mp.enabled
       FROM module_placements mp
+      -- Créditos: solo la fila de la empresa dueña define el módulo.
+      WHERE NOT (mp.key = $1 AND mp.company_id <> $2)
       ON CONFLICT (id) DO NOTHING;
-    `);
+    `, [CREDITS_KEY, CREDITS_OWNER]);
 
+    // Cada empresa conserva su asignación (ubicación/posición); la de créditos
+    // apunta al módulo de la dueña en lugar de a una copia propia.
     await queryRunner.query(`
       INSERT INTO module_assignments (module_id, company_id, placement, position, enabled)
-      SELECT id, company_id, placement, position, enabled
-      FROM module_placements
+      SELECT COALESCE(owner.id, mp.id), mp.company_id, mp.placement, mp.position, mp.enabled
+      FROM module_placements mp
+      LEFT JOIN module_placements owner
+        ON mp.key = $1 AND owner.key = $1 AND owner.company_id = $2
+      WHERE EXISTS (SELECT 1 FROM modules m WHERE m.id = COALESCE(owner.id, mp.id))
       ON CONFLICT (module_id, company_id) DO NOTHING;
-    `);
+    `, [CREDITS_KEY, CREDITS_OWNER]);
 
     await queryRunner.query(`DROP TABLE IF EXISTS module_placements;`);
 
@@ -112,7 +129,9 @@ export class ModuleSystem1700000012000 implements MigrationInterface {
     `);
     await queryRunner.query(`
       INSERT INTO module_placements (id, company_id, key, module, label, placement, position, path, perm, flag, enabled)
-      SELECT ma.module_id, ma.company_id, m.key, m.module, m.label, ma.placement, ma.position, m.path,
+      -- Un módulo asignado a varias empresas (créditos) da varias filas: solo
+      -- la de la dueña puede reutilizar el id del módulo.
+      SELECT CASE WHEN ma.company_id = m.company_id THEN ma.module_id ELSE gen_random_uuid() END, ma.company_id, m.key, m.module, m.label, ma.placement, ma.position, m.path,
              m.module || '.' || COALESCE((m.operations->>0)::jsonb->>'action', 'read')::text, m.flag, ma.enabled
       FROM module_assignments ma
       JOIN modules m ON m.id = ma.module_id;

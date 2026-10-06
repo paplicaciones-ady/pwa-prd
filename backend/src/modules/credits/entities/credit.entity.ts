@@ -4,14 +4,21 @@ import { Company } from '../../config/entities/company.entity';
 import { Client, ClientPersonType } from '../../clients/entities/client.entity';
 import { CreditDocument } from './credit-document.entity';
 
+/** Flujo y transiciones: ver migración 1700000022000-CreditStatusFlow. */
 export enum CreditStatus {
-  PENDING = 'pending',
-  IN_STUDY = 'in_study',
-  APPROVED = 'approved',
+  /** Borrador: solicitud enviada, el algoritmo (Saman) la está evaluando. */
+  DRAFT = 'draft',
+  PRE_APPROVED = 'pre_approved',
   REJECTED = 'rejected',
+  CANCELLED = 'cancelled',
+  /** Documentos enviados a firmar al servicio externo; falta su confirmación. */
+  PENDING_SIGNATURES = 'pending_signatures',
+  /** Firmado/validado: llegó la confirmación de las firmas. */
   SIGNED = 'signed',
-  DISBURSED = 'disbursed',
 }
+
+/** Estados en los que el estudio ya no se puede retomar. */
+export const FINAL_CREDIT_STATUSES: readonly CreditStatus[] = [CreditStatus.REJECTED, CreditStatus.CANCELLED];
 
 /**
  * El driver `pg` devuelve bigint como string. Sin este transformer
@@ -42,7 +49,7 @@ export class Credit extends BaseEntity {
   @Column({ name: 'requested_amount', type: 'decimal', precision: 12, scale: 2 })
   requestedAmount: number;
 
-  @Column({ type: 'enum', enum: CreditStatus, default: CreditStatus.PENDING })
+  @Column({ type: 'enum', enum: CreditStatus, enumName: 'credits_status_enum', default: CreditStatus.DRAFT })
   status: CreditStatus;
 
   @Column({ name: 'application_number', length: 30, nullable: true })
@@ -112,8 +119,9 @@ export class Credit extends BaseEntity {
   decisionAt: Date;
 
   /**
-   * Corrida del algoritmo de scoring que emitió el veredicto. La entidad que
-   * lo produce está fuera de este alcance: la columna queda modelada, sin FK.
+   * Id de la tarea en Saman, el algoritmo que evalúa el estudio
+   * (CreditStudyAlgorithmService). Se llena al enviar el borrador y con él se
+   * consulta el resultado. Null si el envío aún no se hizo o falló.
    */
   @Column({ name: 'decision_run_id', length: 100, nullable: true })
   decisionRunId: string;

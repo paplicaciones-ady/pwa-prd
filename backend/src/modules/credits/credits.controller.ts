@@ -20,9 +20,7 @@ import { CurrentUser } from '../../commons/decorators/current-user.decorator';
 import { IdempotencyInterceptor } from '../../commons/interceptors/idempotency.interceptor';
 import { PaginationQueryDto } from '../../commons/dto/pagination.dto';
 import { CreditsService } from './credits.service';
-import { CreateCreditDto } from './dto/create-credit.dto';
 import { StudyCreditDto } from './dto/study-credit.dto';
-import { CreditStatus } from './entities/credit.entity';
 import { RbacService } from '../rbac/rbac.service';
 
 @Controller('credits')
@@ -83,39 +81,46 @@ export class CreditsController {
     });
   }
 
-  @Post()
-  @Permissions('credits.create')
-  create(@CurrentTenant() companyId: string, @Body() dto: CreateCreditDto) {
-    return this.service.create(companyId, dto);
+  /** Consulta al algoritmo el veredicto de un borrador (el front lo llama cada 10 s). */
+  @Post(':id/study/check')
+  @Permissions('credits.study')
+  checkStudy(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
+    return this.service.checkStudy(id, companyId);
   }
 
+  /** Paso 3: envía los documentos a firma externa → pending_signatures. */
   @Post(':id/sign')
   @Permissions('credits.study')
   sign(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
     return this.service.sign(id, companyId);
   }
 
-  @Post(':id/finalize')
+  /**
+   * Confirmación de las firmas → signed. Mientras no exista el webhook del
+   * servicio de firma externo, se dispara a mano desde la app.
+   */
+  @Post(':id/signatures/confirm')
   @Permissions('credits.study')
-  finalize(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
-    return this.service.finalize(id, companyId);
+  confirmSignatures(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
+    return this.service.confirmSignatures(id, companyId);
   }
 
-  @Patch(':id/study')
+  @Patch(':id/cancel')
   @Permissions('credits.study')
-  studyStatus(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
-    return this.service.updateStatus(id, companyId, CreditStatus.IN_STUDY);
+  cancel(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
+    return this.service.cancel(id, companyId);
   }
 
+  /** Decisión manual sobre un borrador, por si el algoritmo no está disponible. */
   @Patch(':id/approve')
   @Permissions('credits.update')
   approve(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
-    return this.service.updateStatus(id, companyId, CreditStatus.APPROVED);
+    return this.service.decideManually(id, companyId, 'pre_approved');
   }
 
   @Patch(':id/reject')
   @Permissions('credits.update')
   reject(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
-    return this.service.updateStatus(id, companyId, CreditStatus.REJECTED);
+    return this.service.decideManually(id, companyId, 'rejected');
   }
 }

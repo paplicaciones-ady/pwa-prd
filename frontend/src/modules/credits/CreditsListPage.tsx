@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { httpClient } from '../../shared/api/httpClient';
 import { useBackTarget } from '../../shared/layout/TopBarContext';
+import { canCancel, resumePath, statusMeta } from './creditStatus';
 
 interface Credit {
   id: string;
@@ -11,24 +12,6 @@ interface Credit {
   status: string;
   client?: { fullName: string };
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'Pendiente',
-  in_study: 'En estudio',
-  approved: 'Aprobado',
-  rejected: 'Rechazado',
-  signed: 'Firmado',
-  disbursed: 'Desembolsado',
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  pending: '#8a6d00',
-  in_study: '#1356a0',
-  approved: '#1f7a36',
-  rejected: '#c62828',
-  signed: '#2f7d4d',
-  disbursed: '#2f7d4d',
-};
 
 export function CreditsListPage() {
   const { moduleContexts, loadModuleContext } = useAuth();
@@ -55,10 +38,14 @@ export function CreditsListPage() {
 
   const has = (perm: string) => ctx.permissions.includes(perm);
 
-  const goTo = (action: string, id: string) => navigate(`/credits/${action}/${id}`);
-
-  const patch = async (path: string) => {
-    await httpClient.patch(path);
+  const cancel = async (c: Credit) => {
+    const name = c.client?.fullName || 'este cliente';
+    if (!window.confirm(`¿Cancelar la solicitud de crédito de ${name}? Ya no se podrá retomar.`)) return;
+    try {
+      await httpClient.patch(`/credits/${c.id}/cancel`);
+    } catch (err: any) {
+      window.alert(err?.response?.data?.message?.message || 'No se pudo cancelar la solicitud');
+    }
     reload();
   };
 
@@ -75,37 +62,16 @@ export function CreditsListPage() {
         )}
 
         {credits.map((c) => {
-          const color = STATUS_COLOR[c.status] || 'var(--muted)';
+          const { label, color } = statusMeta(c.status);
           const actions: ReactNode[] = [];
+          // Se retoma en la pantalla que corresponde al estado; rechazados y
+          // cancelados ya no se retoman (solo queda el expediente).
+          const resume = resumePath(c.id, c.status);
 
-          if (c.status === 'pending' && has('credits.study')) {
+          if (resume && has('credits.study')) {
             actions.push(
-              <button key="study" className="btn btn-primary" onClick={() => patch(`/credits/${c.id}/study`)}>
-                Enviar a estudio
-              </button>
-            );
-          }
-          if (c.status === 'in_study' && has('credits.study')) {
-            // El veredicto se toma en el paso 1 (CreditStudyPage), así que un
-            // crédito 'in_study' solo puede venir del flujo anterior y aquí ya
-            // no se decide: la pantalla de resultado es de solo lectura.
-            actions.push(
-              <button key="result" className="btn btn-ghost" onClick={() => goTo('result', c.id)}>
-                Ver evaluación
-              </button>
-            );
-          }
-          if (c.status === 'approved' && has('credits.study')) {
-            actions.push(
-              <button key="sign" className="btn btn-primary" onClick={() => goTo('sign', c.id)}>
-                Firmar
-              </button>
-            );
-          }
-          if (c.status === 'signed' && has('credits.study')) {
-            actions.push(
-              <button key="success" className="btn btn-primary" onClick={() => goTo('success', c.id)}>
-                Desembolsar
+              <button key="resume" className="btn btn-primary" onClick={() => navigate(resume)}>
+                {c.status === 'signed' ? 'Ver estado' : 'Retomar'}
               </button>
             );
           }
@@ -113,6 +79,13 @@ export function CreditsListPage() {
             actions.push(
               <button key="docs" className="btn btn-ghost" onClick={() => navigate(`/credits/${c.id}/documents`)}>
                 Documentos
+              </button>
+            );
+          }
+          if (canCancel(c.status) && has('credits.study')) {
+            actions.push(
+              <button key="cancel" className="btn btn-ghost" onClick={() => cancel(c)} style={{ color: '#b00020' }}>
+                Cancelar
               </button>
             );
           }
@@ -137,7 +110,7 @@ export function CreditsListPage() {
                     borderRadius: 999,
                   }}
                 >
-                  {STATUS_LABEL[c.status] || c.status}
+                  {label}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>

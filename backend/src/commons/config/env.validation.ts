@@ -35,4 +35,11 @@ export const envValidationSchema = Joi.object({
   SEED_DEMO_DATA: Joi.boolean().default(false),
   // Contraseña de los usuarios demo que crean los seeds (solo dev).
   SEED_DEMO_PASSWORD: Joi.string().min(8).default('Password123!'),
+
+  // Algoritmo de estudio de crédito (Saman). Sin URL funciona en modo simulado.
+  SAMAN_API_URL: Joi.string().uri().allow('').default(''),
+  SAMAN_API_KEY: Joi.string().allow('').default(''),
+  SAMAN_SIMULATED_DELAY_MS: Joi.number().integer().min(0).default(20000),
+  // Cada cuánto el backend resuelve en segundo plano los borradores pendientes (0 = desactivado).
+  CREDIT_STUDY_POLL_INTERVAL_MS: Joi.number().integer().min(0).default(30000),
 });

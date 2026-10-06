@@ -1,4 +1,4 @@
-const STEPS = ['Estudio', 'Aprobación', 'Firma', 'Desembolso'];
+const STEPS = ['Estudio', 'Pre-aprobación', 'Firmas', 'Validación'];
 
 export function CreditStepper({ current }: { current: 1 | 2 | 3 | 4 }) {
   return (

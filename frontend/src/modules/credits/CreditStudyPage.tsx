@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { AppBar } from '../../shared/components/AppBar';
 import { CreditStepper } from '../../shared/components/CreditStepper';
@@ -12,7 +12,14 @@ import { isDocumentWithDv, nitBody, validateNit } from '../../shared/utils/valid
 import { CONSENT_UI_MODE } from './consentUiMode';
 
 type PersonType = 'natural' | 'juridica';
-type Decision = 'approved' | 'rejected';
+
+/**
+ * Sub-pasos del paso 1. Viven en la URL (?paso=identificacion) para que el
+ * "atrás" del navegador o del móvil vuelva de 1b a 1a sin desmontar la página:
+ * las respuestas se conservan en memoria. Recargar la página las pierde.
+ */
+const SUB_STEP_PARAM = 'paso';
+const IDENTIFICATION = 'identificacion';
 
 interface ClientLookup {
   id: string;
@@ -27,6 +34,7 @@ interface ClientLookup {
 
 export function CreditStudyPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { moduleContexts } = useAuth();
   const theme = useTheme();
   const [personType, setPersonType] = useState<PersonType>('natural');
@@ -43,12 +51,9 @@ export function CreditStudyPage() {
   const [showConsent, setShowConsent] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showFinance, setShowFinance] = useState(false);
   const [yearsExperience, setYearsExperience] = useState('');
   const [opportunityValue, setOpportunityValue] = useState('');
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
-  const [pendingDecision, setPendingDecision] = useState<Decision | null>(null);
-  const [financeError, setFinanceError] = useState('');
 
   const canCreateClient = moduleContexts['clients']?.permissions.includes('clients.create') ?? false;
 
@@ -93,7 +98,7 @@ export function CreditStudyPage() {
 
   const goCreateClient = () => navigate(`/clients/new?nit=${nitBody(nit)}`);
 
-  const openFinanceModal = () => {
+  const handleSubmit = async () => {
     setError('');
     if (!client) {
       setError('El NIT no corresponde a un cliente registrado.');
@@ -111,20 +116,7 @@ export function CreditStudyPage() {
       setError('El cliente debe firmar la autorización de tratamiento de datos para continuar.');
       return;
     }
-    setFinanceError('');
-    setPendingDecision(null);
-    setShowFinance(true);
-  };
-
-  const closeFinanceModal = () => {
-    if (submitting) return;
-    setShowFinance(false);
-    setPendingDecision(null);
-  };
-
-  const handleSubmit = async (decision: Decision) => {
-    if (!client || !signatureData || reliabilityScore === null) return;
-    setFinanceError('');
+    if (reliabilityScore === null) return;
     setSubmitting(true);
     try {
       const res = await httpClient.post('/credits/study', {
@@ -135,14 +127,14 @@ export function CreditStudyPage() {
         yearsExperience: Number(yearsExperience),
         opportunityValue: Number(opportunityValue),
         reliabilityScore,
-        decision,
         consentSignature: signatureData,
       });
-      // El veredicto ya quedó registrado: el paso 2 solo lo muestra, así que no
-      // se navega pasando nada por el state del router (se perdería al recargar).
-      navigate(`/credits/result/${res.data.id}`);
+      // El crédito queda en borrador y el algoritmo lo evalúa: la pantalla de
+      // resultado consulta su veredicto. replace: volver atrás no debe reabrir
+      // un formulario ya enviado.
+      navigate(`/credits/result/${res.data.id}`, { replace: true });
     } catch (err: any) {
-      setFinanceError(err?.response?.data?.message?.message || 'No se pudo enviar la solicitud');
+      setError(err?.response?.data?.message?.message || 'No se pudo enviar la solicitud');
       setSubmitting(false);
     }
   };
@@ -161,7 +153,15 @@ export function CreditStudyPage() {
     opportunityValue !== '' &&
     opportunity > 0 &&
     reliabilityScore !== null;
-  const decisionReady = answersReady && consentSigned;
+  const onIdentification = searchParams.get(SUB_STEP_PARAM) === IDENTIFICATION;
+
+  // Entrar directo a 1b (recarga, enlace) sin las respuestas en memoria: se
+  // vuelve a 1a, que es donde se capturan.
+  useEffect(() => {
+    if (onIdentification && !answersReady) setSearchParams({}, { replace: true });
+  }, [onIdentification, answersReady, setSearchParams]);
+
+  const goToIdentification = () => setSearchParams({ [SUB_STEP_PARAM]: IDENTIFICATION });
 
   const checkMark = (
     <span className="bx">
@@ -201,11 +201,86 @@ export function CreditStudyPage() {
       </div>
     );
 
+  const subSteps = (
+    <div className="substeps" aria-label={`Paso 1, parte ${onIdentification ? 2 : 1} de 2`}>
+      <span className={onIdentification ? 'done' : 'on'}>1. Evaluación</span>
+      <span className={onIdentification ? 'on' : ''}>2. Identificación</span>
+    </div>
+  );
+
+  if (!onIdentification) {
+    return (
+      <div className="s2 flow crflow">
+        <AppBar title="Estudio de crédito" subtitle="Paso 1 de 4 · Evaluación" logo={logo} />
+        <div className="body credit-body">
+          <CreditStepper current={1} />
+          {subSteps}
+
+          <div className="sectitle">Evaluación comercial</div>
+
+          <div className="field">
+            <label>¿Cuántos años de experiencia tiene en el mercado?</label>
+            <input
+              className="inp"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              inputMode="numeric"
+              value={yearsExperience}
+              onChange={(e) => setYearsExperience(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="Ej. 8"
+            />
+            <div className="help">Mide la trayectoria del negocio.</div>
+          </div>
+
+          <div className="field">
+            <label>¿Cuál es el valor de la oportunidad que ve en el cliente?</label>
+            <input
+              className="inp"
+              type="number"
+              min="0"
+              step="1000"
+              inputMode="numeric"
+              value={opportunityValue}
+              onChange={(e) => setOpportunityValue(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="Ej. 5000000"
+            />
+            <div className="help">Monto en pesos, sin decimales.</div>
+          </div>
+
+          <div className="field">
+            <label>De 1 a 5, ¿qué tan confiable le parece este crédito?</label>
+            <ScaleInput
+              value={reliabilityScore}
+              onChange={setReliabilityScore}
+              lowLabel="1 · No va a pagar"
+              highLabel="5 · Va a pagar"
+              ariaLabel="Qué tan confiable le parece este crédito"
+              tooltip="1 = no va a pagar, 5 = va a pagar. Registra el juicio del asesor que conoce al cliente."
+            />
+          </div>
+        </div>
+
+        <div className="action-bar credit-actions">
+          <div className="credit-form-actions">
+            <button className="btn btn-primary" disabled={!answersReady} onClick={goToIdentification}>
+              Continuar
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+            <div className="bhelp">Responde las 3 preguntas para continuar</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="s2 flow crflow">
-      <AppBar title="Estudio de crédito" subtitle="Paso 1 de 4" logo={logo} />
+      <AppBar title="Estudio de crédito" subtitle="Paso 1 de 4 · Identificación" logo={logo} />
       <div className="body credit-body">
         <CreditStepper current={1} />
+        {subSteps}
 
         <div className="sectitle">Identificación del cliente</div>
 
@@ -364,8 +439,8 @@ export function CreditStudyPage() {
 
       <div className="action-bar credit-actions">
         <div className="credit-form-actions">
-          <button className="btn btn-primary" disabled={!clientReady} onClick={openFinanceModal}>
-            Solicitar estudio de crédito
+          <button className="btn btn-primary" disabled={!clientReady || submitting} onClick={handleSubmit}>
+            {submitting ? 'Enviando solicitud…' : 'Solicitar estudio de crédito'}
             <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
           <div className="bhelp">Se habilita al validar el NIT, confirmarlo y firmar la autorización de datos</div>
@@ -401,105 +476,6 @@ export function CreditStudyPage() {
         </Modal>
       )}
 
-      <Modal open={showFinance} onClose={closeFinanceModal}>
-        <div className="sectitle">Evaluación comercial</div>
-
-        <div className="field">
-          <label>¿Cuántos años de experiencia tiene en el mercado?</label>
-          <input
-            className="inp"
-            type="number"
-            min="0"
-            max="100"
-            step="1"
-            inputMode="numeric"
-            value={yearsExperience}
-            onChange={(e) => setYearsExperience(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="Ej. 8"
-            autoFocus
-          />
-          <div className="help">Mide la trayectoria del negocio.</div>
-        </div>
-
-        <div className="field">
-          <label>¿Cuál es el valor de la oportunidad que ve en el cliente?</label>
-          <input
-            className="inp"
-            type="number"
-            min="0"
-            step="1000"
-            inputMode="numeric"
-            value={opportunityValue}
-            onChange={(e) => setOpportunityValue(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="Ej. 5000000"
-          />
-          <div className="help">Monto en pesos, sin decimales.</div>
-        </div>
-
-        <div className="field">
-          <label>De 1 a 5, ¿qué tan confiable le parece este crédito?</label>
-          <ScaleInput
-            value={reliabilityScore}
-            onChange={setReliabilityScore}
-            lowLabel="1 · No va a pagar"
-            highLabel="5 · Va a pagar"
-            ariaLabel="Qué tan confiable le parece este crédito"
-            tooltip="1 = no va a pagar, 5 = va a pagar. Registra el juicio del asesor que conoce al cliente."
-          />
-        </div>
-
-        {financeError && <p style={{ color: '#c62828', fontSize: 12, margin: '10px 2px' }}>{financeError}</p>}
-
-        {pendingDecision ? (
-          <div className="note" style={{ marginTop: 4 }}>
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 8v5M12 16.5v.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-            </svg>
-            <p>
-              {pendingDecision === 'approved'
-                ? `¿Confirmas aprobar $${opportunity.toLocaleString('es-CO')} a ${client?.legalName || client?.fullName}?`
-                : `¿Confirmas rechazar la solicitud de ${client?.legalName || client?.fullName}?`}
-            </p>
-            <div className="rowbtn" style={{ marginTop: 12 }}>
-              <button
-                className="btn btn-primary"
-                disabled={submitting}
-                onClick={() => handleSubmit(pendingDecision)}
-              >
-                {submitting ? 'Enviando…' : pendingDecision === 'approved' ? 'Sí, aprobar' : 'Sí, rechazar'}
-              </button>
-              <button className="btn btn-ghost" disabled={submitting} onClick={() => setPendingDecision(null)}>
-                Volver
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="action-bar stacked" style={{ position: 'static', boxShadow: 'none', padding: 0 }}>
-            <button
-              className="btn btn-green"
-              disabled={!decisionReady || submitting}
-              onClick={() => setPendingDecision('approved')}
-            >
-              Aprobar solicitud
-              <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-            <button
-              className="btn btn-ghost"
-              disabled={!decisionReady || submitting}
-              onClick={() => setPendingDecision('rejected')}
-              style={{ background: '#fdecec' }}
-            >
-              Rechazar solicitud
-            </button>
-            <div className="bhelp" style={{ textAlign: 'center' }}>
-              {consentSigned
-                ? 'Responde las 4 preguntas para habilitar la decisión'
-                : 'Falta la firma de autorización del cliente'}
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

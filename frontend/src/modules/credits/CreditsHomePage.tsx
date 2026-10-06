@@ -4,19 +4,19 @@ import { useBackTarget } from '../../shared/layout/TopBarContext';
 const STEPS = [
   {
     title: 'Estudio de crédito',
-    desc: 'Datos del cliente y consentimiento. Adjuntar: tratamiento de datos.',
+    desc: 'Evaluación comercial, datos del cliente y firma de la autorización de tratamiento de datos.',
   },
   {
-    title: 'Algoritmo y aprobación',
-    desc: 'Se corre el algoritmo de crédito y define cupo, plazo y tasa.',
+    title: 'Algoritmo y pre-aprobación',
+    desc: 'La solicitud queda en borrador mientras el algoritmo la evalúa y la pre-aprueba o rechaza.',
   },
   {
-    title: 'Firma del pagaré',
-    desc: 'Adjuntar: pagaré + carta de instrucciones.',
+    title: 'Firma de documentos',
+    desc: 'El pagaré y la carta de instrucciones se envían a la plataforma de firma electrónica.',
   },
   {
-    title: 'Formalización y desembolso',
-    desc: 'Solicitud creada. Se genera: documento de bienvenida y detalle.',
+    title: 'Validación de firmas',
+    desc: 'Al llegar la confirmación de las firmas, el crédito queda firmado y validado.',
   },
   {
     title: 'Seguimiento y cartera',

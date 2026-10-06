@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { statusMeta } from './creditStatus';
 import { AppBar } from '../../shared/components/AppBar';
 import { httpClient } from '../../shared/api/httpClient';
 import { useTheme } from '../../shared/theme/ThemeContext';
@@ -12,15 +13,6 @@ interface PortfolioCredit {
   status: string;
   client?: { fullName: string; legalName?: string; documentNumber: string };
 }
-
-const STATUS_LABEL: Record<string, { text: string; color: string }> = {
-  pending: { text: 'Pendiente', color: '#8a6d00' },
-  in_study: { text: 'En estudio', color: '#1356a0' },
-  approved: { text: 'Aprobado', color: '#1f7a36' },
-  rejected: { text: 'Rechazado', color: '#c62828' },
-  signed: { text: 'Firmado', color: '#2f7d4d' },
-  disbursed: { text: 'Desembolsado', color: '#2f7d4d' },
-};
 
 export function CreditPortfolioPage() {
   const navigate = useNavigate();
@@ -46,7 +38,7 @@ export function CreditPortfolioPage() {
             <rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
             <path d="M3 10h18M9 15h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
-          <p>Solicitudes de crédito de tu cartera. Avanza por el flujo: estudio → aprobación → firma → desembolso.</p>
+          <p>Solicitudes de crédito de tu cartera. Avanza por el flujo: estudio → pre-aprobación → firma de documentos → validación.</p>
         </div>
 
         {error && <p style={{ color: '#c62828', fontSize: 12 }}>{error}</p>}
@@ -59,7 +51,8 @@ export function CreditPortfolioPage() {
         )}
 
         {credits.map((c) => {
-          const st = STATUS_LABEL[c.status] || { text: c.status, color: 'var(--muted)' };
+          const { label, color } = statusMeta(c.status);
+          const st = { text: label, color };
           return (
             <Link
               key={c.id}
@@ -103,9 +96,9 @@ export function CreditPortfolioPage() {
                     ${Number(c.requestedAmount).toLocaleString()}
                   </span>
                 </div>
-                {c.approvedLimit && c.status !== 'rejected' && (
+                {c.approvedLimit && c.status !== 'rejected' && c.status !== 'cancelled' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cupo aprobado</span>
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cupo pre-aprobado</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green-deep)' }}>
                       ${Number(c.approvedLimit).toLocaleString()}
                     </span>

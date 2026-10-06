@@ -4,6 +4,7 @@ import { AppBar } from '../../shared/components/AppBar';
 import { CreditStepper } from '../../shared/components/CreditStepper';
 import { httpClient } from '../../shared/api/httpClient';
 import { useTheme } from '../../shared/theme/ThemeContext';
+import { resumePath, statusMeta } from './creditStatus';
 
 interface SignCredit {
   id: string;
@@ -42,10 +43,11 @@ export function CreditSignPage() {
     setBusy(true);
     setError('');
     try {
+      // Queda en pending_signatures hasta que el servicio externo confirme las firmas.
       await httpClient.post(`/credits/${id}/sign`);
-      navigate(`/credits/success/${id}`);
+      navigate(`/credits/success/${id}`, { replace: true });
     } catch (err: any) {
-      setError(err?.response?.data?.message?.message || 'No se pudo firmar el pagaré');
+      setError(err?.response?.data?.message?.message || 'No se pudieron enviar los documentos a firma');
       setBusy(false);
     }
   };
@@ -53,7 +55,7 @@ export function CreditSignPage() {
   if (error && !credit) {
     return (
       <div className="s2 crflow">
-        <AppBar title="Firma del pagaré" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
+        <AppBar title="Firma de documentos" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
         <div className="body" style={{ paddingBottom: 24 }}>
           <div className="card" style={{ borderColor: '#f6caca', background: '#fdecec', color: '#c62828', fontSize: 12, fontWeight: 600 }}>
             {error}
@@ -66,7 +68,7 @@ export function CreditSignPage() {
   if (!credit) {
     return (
       <div className="s2 crflow">
-        <AppBar title="Firma del pagaré" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
+        <AppBar title="Firma de documentos" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
         <div className="body" style={{ color: 'var(--muted)', fontSize: 13 }}>Cargando…</div>
       </div>
     );
@@ -76,9 +78,35 @@ export function CreditSignPage() {
   const email = credit.client?.email || 'correo@empresa.com';
   const phone = credit.client?.phone || '';
 
+  // Solo un crédito pre-aprobado se envía a firma. Si ya avanzó (o terminó),
+  // se ofrece ir a donde corresponde según su estado.
+  if (credit.status !== 'pre_approved') {
+    const next = resumePath(credit.id, credit.status);
+    return (
+      <div className="s2 crflow">
+        <AppBar title="Firma de documentos" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
+        <div className="body" style={{ paddingBottom: 24 }}>
+          <CreditStepper current={3} />
+          <div className="note">
+            <p>
+              Esta solicitud está en estado <strong>{statusMeta(credit.status).label}</strong>: los documentos solo
+              se envían a firma cuando el crédito está pre-aprobado.
+            </p>
+          </div>
+          <div className="rowbtn" style={{ marginTop: 16 }}>
+            <button className="btn btn-ghost" onClick={() => navigate('/credits/list')}>Volver a la lista</button>
+            {next && next !== `/credits/sign/${credit.id}` && (
+              <button className="btn btn-primary" onClick={() => navigate(next)}>Continuar</button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="s2 crflow">
-      <AppBar title="Firma del pagaré" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
+      <AppBar title="Firma de documentos" subtitle="Paso 3 de 4" logo={theme.logoUrl || undefined} />
       <div className="body" style={{ paddingBottom: 24 }}>
         <CreditStepper current={3} />
 
@@ -88,7 +116,7 @@ export function CreditSignPage() {
           <div className="stk"><div className="k">Cliente</div><div className="v">{clientName}</div></div>
           <div className="stk"><div className="k">NIT</div><div className="v">{credit.client?.documentNumber}</div></div>
           <div className="stk"><div className="k">Solicitud</div><div className="v">{credit.applicationNumber || '—'}</div></div>
-          <div className="stk"><div className="k">Cupo aprobado</div><div className="v" style={{ color: 'var(--green-deep)' }}>${Number(credit.approvedLimit || credit.requestedAmount).toLocaleString('es-CO')}</div></div>
+          <div className="stk"><div className="k">Cupo pre-aprobado</div><div className="v" style={{ color: 'var(--green-deep)' }}>${Number(credit.approvedLimit || credit.requestedAmount).toLocaleString('es-CO')}</div></div>
         </div>
 
         <div className="field" style={{ marginBottom: 10 }}>
@@ -125,11 +153,11 @@ export function CreditSignPage() {
         <div className="sp" />
         <div className="action-bar">
           <button className="btn btn-primary" disabled={!confirm || busy} onClick={sign} style={{ opacity: busy ? 0.6 : 1 }}>
-            {busy ? 'Firmando…' : 'Aceptar información y firmar'}
+            {busy ? 'Enviando…' : 'Aceptar información y enviar a firma'}
             <svg viewBox="0 0 24 24" fill="none"><path d="M3 19c3-1 4-9 7-9s2 6 4 6 2-4 4-4 2 2 3 2" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
         </div>
-        <div className="bhelp">Serás dirigido a la plataforma de firma electrónica</div>
+        <div className="bhelp">Los documentos se envían a la plataforma de firma electrónica; el crédito queda pendiente de firmas hasta su confirmación</div>
       </div>
     </div>
   );

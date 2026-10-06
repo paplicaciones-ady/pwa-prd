@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import {
   IsEnum,
-  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -49,14 +48,6 @@ export class StudyCreditDto {
   @Max(5)
   @Type(() => Number)
   reliabilityScore: number;
-
-  /**
-   * Veredicto. Lo emite el asesor desde el modal de la evaluación; por ahora no
-   * hay scoring automático, así que no se acepta `decision` ausente. El cupo de
-   * un crédito aprobado es fijo (ver APPROVED_LIMIT en credits.service.ts).
-   */
-  @IsIn(['approved', 'rejected'])
-  decision: 'approved' | 'rejected';
 
   /**
    * Firma manuscrita del cliente como data URL PNG. Obligatoria: es lo que

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppBar } from '../../shared/components/AppBar';
+import { Modal } from '../../shared/components/Modal';
 import { httpClient } from '../../shared/api/httpClient';
 import { useTheme } from '../../shared/theme/ThemeContext';
+import { resumePath, statusMeta } from './creditStatus';
 
 interface DocDetail {
   id: string;
@@ -29,6 +31,7 @@ export function CreditDocumentsPage() {
   const [status, setStatus] = useState('');
   const [documents, setDocuments] = useState<DocDetail[]>([]);
   const [signature, setSignature] = useState<{ dataUrl: string; signedAt: string | null } | null>(null);
+  const [signatureOpen, setSignatureOpen] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -43,26 +46,38 @@ export function CreditDocumentsPage() {
 
     httpClient
       .get(`/credits/${id}/documents`)
-      .then((res) => setDocuments(res.data))
+      .then((res) => {
+        const docs: DocDetail[] = res.data;
+        setDocuments(docs);
+        // El binario no viene en el listado (contentBase64 es select:false): se
+        // pide aparte y solo el de la firma, que es el único documento con imagen.
+        const consent = docs.find((d) => d.code === CONSENT_CODE);
+        if (!consent) return;
+        return httpClient
+          .get(`/credits/${id}/documents/${consent.id}/signature`)
+          .then((sig) => {
+            const { contentBase64, contentMime } = sig.data;
+            if (!contentBase64) {
+              setError('Este documento no tiene contenido almacenado');
+              return;
+            }
+            setSignature({
+              dataUrl: `data:${contentMime || 'image/png'};base64,${contentBase64}`,
+              signedAt: consent.signedAt,
+            });
+          })
+          .catch((err: any) => setError(err?.response?.data?.message?.message || 'No se pudo cargar la firma'));
+      })
       .catch(() => setError('No se pudieron cargar los documentos'));
   }, [id]);
 
-  // El binario de la firma no viene en el listado (contentBase64 es select:false):
-  // se pide solo cuando alguien lo abre.
-  const showSignature = (documentId: string, signedAt: string | null) => {
-    if (!id) return;
-    setError('');
-    httpClient
-      .get(`/credits/${id}/documents/${documentId}/signature`)
-      .then((res) => {
-        const { contentBase64, contentMime } = res.data;
-        if (!contentBase64) {
-          setError('Este documento no tiene contenido almacenado');
-          return;
-        }
-        setSignature({ dataUrl: `data:${contentMime || 'image/png'};base64,${contentBase64}`, signedAt });
-      })
-      .catch((err: any) => setError(err?.response?.data?.message?.message || 'No se pudo cargar la firma'));
+  // Chrome bloquea navegar a un data: URL en una pestaña nueva; un blob: URL sí abre.
+  const openSignatureInTab = async () => {
+    if (!signature) return;
+    const blob = await (await fetch(signature.dataUrl)).blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   const primary = theme.primaryColor;
@@ -80,29 +95,11 @@ export function CreditDocumentsPage() {
             {applicationNumber
               ? `Expediente de la solicitud ${applicationNumber}.`
               : 'Expediente de la solicitud.'}{' '}
-            Estado actual: <strong>{status || '—'}</strong>
+            Estado actual: <strong>{status ? statusMeta(status).label : '—'}</strong>
           </p>
         </div>
 
         {error && <p style={{ color: '#c62828', fontSize: 12 }}>{error}</p>}
-
-        {signature && (
-          <div className="card" style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: 'var(--faint)', marginBottom: 9 }}>
-              FIRMA DE AUTORIZACIÓN
-            </div>
-            <img
-              src={signature.dataUrl}
-              alt="Firma de autorización de datos"
-              style={{ display: 'block', width: '100%', borderRadius: 10, border: '1.5px solid var(--line)' }}
-            />
-            {signature.signedAt && (
-              <div style={{ color: 'var(--faint)', fontSize: 11, marginTop: 8 }}>
-                Registrada el {new Date(signature.signedAt).toLocaleString('es-CO')}
-              </div>
-            )}
-          </div>
-        )}
 
         {documents.length === 0 && !error && (
           <div className="empty-state" style={{ background: 'var(--white)', borderRadius: 16 }}>
@@ -136,14 +133,16 @@ export function CreditDocumentsPage() {
                     : `Código: ${d.code}`}
                 </div>
               </div>
-              {d.code === CONSENT_CODE ? (
+              {d.code === CONSENT_CODE && signature ? (
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  style={{ flex: 'none', minWidth: 0, padding: '7px 12px', fontSize: 11.5 }}
-                  onClick={() => showSignature(d.id, d.signedAt)}
+                  className="sig-thumb"
+                  onClick={() => setSignatureOpen(true)}
+                  title="Ver firma en grande"
+                  aria-label="Ver firma de autorización en grande"
                 >
-                  Ver firma
+                  <img src={signature.dataUrl} alt="Firma de autorización de datos" />
+                  <span>Ampliar</span>
                 </button>
               ) : (
                 <span
@@ -168,18 +167,45 @@ export function CreditDocumentsPage() {
           <button type="button" className="btn btn-ghost" onClick={() => navigate('/credits/list')}>
             Volver
           </button>
-          {status === 'signed' && (
+          {id && status !== 'signed' && resumePath(id, status) && (
             <button
               type="button"
               className="btn btn-primary"
               style={{ background: primary }}
-              onClick={() => navigate(`/credits/success/${id}`)}
+              onClick={() => navigate(resumePath(id, status) as string)}
             >
-              Registrar desembolso
+              Retomar estudio
             </button>
           )}
         </div>
       </div>
+
+      <Modal open={signatureOpen && !!signature} onClose={() => setSignatureOpen(false)}>
+        <div className="sectitle">Firma de autorización</div>
+        {signature && (
+          <>
+            <img className="sig-full" src={signature.dataUrl} alt="Firma de autorización de datos" />
+            {signature.signedAt && (
+              <div style={{ color: 'var(--faint)', fontSize: 11, marginTop: 8 }}>
+                Registrada el {new Date(signature.signedAt).toLocaleString('es-CO')}
+              </div>
+            )}
+            <div className="rowbtn" style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-ghost" onClick={openSignatureInTab}>
+                Abrir imagen
+              </button>
+              <a
+                className="btn btn-ghost"
+                style={{ textDecoration: 'none' }}
+                href={signature.dataUrl}
+                download={`firma-autorizacion-${applicationNumber || id}.png`}
+              >
+                Descargar
+              </a>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
