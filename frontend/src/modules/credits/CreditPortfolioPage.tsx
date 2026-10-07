@@ -8,7 +8,6 @@ import { useTheme } from '../../shared/theme/ThemeContext';
 interface PortfolioCredit {
   id: string;
   applicationNumber: string;
-  requestedAmount: string;
   approvedLimit: string | null;
   status: string;
   client?: { fullName: string; legalName?: string; documentNumber: string };
@@ -88,12 +87,6 @@ export function CreditPortfolioPage() {
                     }}
                   >
                     {st.text}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
-                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Solicitado</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                    ${Number(c.requestedAmount).toLocaleString()}
                   </span>
                 </div>
                 {c.approvedLimit && c.status !== 'rejected' && c.status !== 'cancelled' && (

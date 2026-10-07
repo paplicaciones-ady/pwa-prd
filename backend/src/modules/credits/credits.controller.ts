@@ -81,11 +81,28 @@ export class CreditsController {
     });
   }
 
+  /**
+   * Confirmación del paso 1: valida y devuelve la petición que se enviará a
+   * Saman, sin crear nada. Mismo body que POST /credits/study.
+   */
+  @Post('study/preview')
+  @Permissions('credits.study')
+  previewStudy(@CurrentTenant() companyId: string, @Body() dto: StudyCreditDto) {
+    return this.service.previewStudy(companyId, dto);
+  }
+
   /** Consulta al algoritmo el veredicto de un borrador (el front lo llama cada 10 s). */
   @Post(':id/study/check')
   @Permissions('credits.study')
   checkStudy(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
     return this.service.checkStudy(id, companyId);
+  }
+
+  /** Reintento manual tras un error de Saman: envía el borrador de nuevo. */
+  @Post(':id/study/retry')
+  @Permissions('credits.study')
+  retryStudy(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
+    return this.service.retryStudy(id, companyId);
   }
 
   /** Paso 3: envía los documentos a firma externa → pending_signatures. */

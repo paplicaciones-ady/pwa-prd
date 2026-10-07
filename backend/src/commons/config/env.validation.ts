@@ -39,7 +39,13 @@ export const envValidationSchema = Joi.object({
   // Algoritmo de estudio de crédito (Saman). Sin URL funciona en modo simulado.
   SAMAN_API_URL: Joi.string().uri().allow('').default(''),
   SAMAN_API_KEY: Joi.string().allow('').default(''),
+  // Proxy de salida con lista blanca (docker-compose: http://egress-proxy:3128). Vacío = conexión directa.
+  SAMAN_HTTPS_PROXY: Joi.string().uri().allow('').default(''),
+  SAMAN_EMPRESA: Joi.string().allow('').default(''),
+  SAMAN_EXTERNAS: Joi.boolean().default(false),
+  SAMAN_TASK_MAX_AGE_HOURS: Joi.number().integer().min(1).default(24),
   SAMAN_SIMULATED_DELAY_MS: Joi.number().integer().min(0).default(20000),
+  SAMAN_SIMULATED_RESULT: Joi.string().valid('approved', 'rejected', 'failed', '').default('approved'),
   // Cada cuánto el backend resuelve en segundo plano los borradores pendientes (0 = desactivado).
   CREDIT_STUDY_POLL_INTERVAL_MS: Joi.number().integer().min(0).default(30000),
 });

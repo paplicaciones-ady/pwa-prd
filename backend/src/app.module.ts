@@ -3,6 +3,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -72,6 +73,8 @@ import { CorrelationIdMiddleware } from './commons/middlewares/correlation-id.mi
     }),
     LoggerModule,
     EventEmitterModule.forRoot(),
+    // Tareas programadas (p. ej. CreditStudyPoller); las detiene al apagar.
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         // Límite general de defensa en profundidad (Kong ya aplica 100/min en producción).

@@ -3,6 +3,7 @@ import { BaseEntity } from '../../../commons/entities/base.entity';
 import { Company } from '../../config/entities/company.entity';
 import { Client, ClientPersonType } from '../../clients/entities/client.entity';
 import { CreditDocument } from './credit-document.entity';
+import type { SamanAlgorithmResult } from '../saman/saman.types';
 
 /** Flujo y transiciones: ver migración 1700000022000-CreditStatusFlow. */
 export enum CreditStatus {
@@ -46,16 +47,13 @@ export class Credit extends BaseEntity {
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
-  @Column({ name: 'requested_amount', type: 'decimal', precision: 12, scale: 2 })
-  requestedAmount: number;
-
   @Column({ type: 'enum', enum: CreditStatus, enumName: 'credits_status_enum', default: CreditStatus.DRAFT })
   status: CreditStatus;
 
   @Column({ name: 'application_number', length: 30, nullable: true })
   applicationNumber: string;
 
-  /** NIT con dígito de verificación, formato `900123456-7`. */
+  /** NIT con dígito de verificación, solo dígitos (`9001234567`). */
   @Column({ length: 20, nullable: true })
   nit: string;
 
@@ -120,11 +118,25 @@ export class Credit extends BaseEntity {
 
   /**
    * Id de la tarea en Saman, el algoritmo que evalúa el estudio
-   * (CreditStudyAlgorithmService). Se llena al enviar el borrador y con él se
+   * (saman/saman.client.ts). Se llena al enviar el borrador y con él se
    * consulta el resultado. Null si el envío aún no se hizo o falló.
    */
-  @Column({ name: 'decision_run_id', length: 100, nullable: true })
-  decisionRunId: string;
+  @Column({ name: 'decision_run_id', type: 'varchar', length: 100, nullable: true })
+  decisionRunId: string | null;
+
+  /**
+   * Resumen del veredicto de Saman o del error que impidió obtenerlo.
+   * Null mientras no hay respuesta.
+   */
+  @Column({ name: 'algorithm_result', type: 'jsonb', nullable: true })
+  algorithmResult: SamanAlgorithmResult | null;
+
+  /** Consultas hechas a Saman: espacia los reintentos del sondeo en segundo plano. */
+  @Column({ name: 'algorithm_attempts', type: 'int', default: 0 })
+  algorithmAttempts: number;
+
+  @Column({ name: 'algorithm_checked_at', type: 'timestamptz', nullable: true })
+  algorithmCheckedAt: Date | null;
 
   /** Proveedor del algoritmo de scoring. Sin FK por la misma razón. */
   @Column({ name: 'vendor_id', type: 'uuid', nullable: true })

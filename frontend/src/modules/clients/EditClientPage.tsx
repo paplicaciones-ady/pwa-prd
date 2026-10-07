@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { useBackTarget } from '../../shared/layout/TopBarContext';
+import { sanitizeDocumentNumber } from '../../shared/utils/validators';
 
 export function EditClientPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,7 +50,12 @@ export function EditClientPage() {
     setSaved(false);
     setError('');
     try {
-      await httpClient.patch(`/clients/${id}`, form);
+      // documentType y personType solo se muestran (no los acepta UpdateClientDto),
+      // y los opcionales vacíos se omiten: un correo "" no pasa la validación.
+      const payload = Object.fromEntries(
+        Object.entries(form).filter(([k, v]) => k !== 'documentType' && k !== 'personType' && v !== ''),
+      );
+      await httpClient.patch(`/clients/${id}`, payload);
       setSaved(true);
       setTimeout(() => navigate('/clients'), 700);
     } catch (err: any) {
@@ -102,8 +108,8 @@ export function EditClientPage() {
           <input className="inp" value={form.fullName} onChange={(e) => set('fullName', e.target.value)} required />
         </div>
         <div className="field">
-          <label>* Documento</label>
-          <input className="inp" value={form.documentNumber} onChange={(e) => set('documentNumber', e.target.value)} required />
+          <label>{form.documentType === 'nit' ? "* NIT completo, con DV y sin '-'" : "* Documento (sin '-')"}</label>
+          <input className="inp" value={form.documentNumber} onChange={(e) => set('documentNumber', sanitizeDocumentNumber(e.target.value))} maxLength={20} required />
         </div>
         <div className="row2">
           <div className="field">

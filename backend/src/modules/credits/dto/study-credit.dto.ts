@@ -19,11 +19,11 @@ export class StudyCreditDto {
   clientId: string;
 
   /**
-   * NIT con dígito de verificación: documento del cliente (8 a 15 dígitos) +
-   * DV, sin separadores. study() comprueba que el cuerpo sea el documento del
-   * cliente y el DV, y lo guarda como `900123456-7`.
+   * Persona jurídica: NIT completo, con DV. Persona natural: número de
+   * identificación sin DV. En ambos casos solo dígitos, sin '-'. study() lo
+   * compara con el documento del cliente y lo guarda así.
    */
-  @Matches(/^\d{9,16}$/, { message: 'El NIT debe ser el documento del cliente más el dígito de verificación' })
+  @Matches(/^\d{5,16}$/, { message: "El NIT o número de identificación va solo con dígitos, sin '-'" })
   nit: string;
 
   // --- Evaluación comercial (cada pregunta tiene su columna en credits) ---
@@ -56,12 +56,6 @@ export class StudyCreditDto {
   @Matches(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/)
   @MaxLength(400000)
   consentSignature: string;
-
-  @IsOptional()
-  @IsNumber()
-  @IsPositive()
-  @Type(() => Number)
-  requestedAmount?: number;
 
   @IsOptional()
   @IsNumber()

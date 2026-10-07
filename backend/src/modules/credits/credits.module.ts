@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Credit } from './entities/credit.entity';
 import { CreditDocument } from './entities/credit-document.entity';
 import { CreditsService } from './credits.service';
-import { CreditStudyAlgorithmService } from './credit-study-algorithm.service';
+import { SamanClient } from './saman/saman.client';
 import { CreditSignatureService } from './credit-signature.service';
 import { CreditStudyPoller } from './credit-study.poller';
 import { CreditsController } from './credits.controller';
@@ -15,7 +15,7 @@ import { IdempotencyInterceptor } from '../../commons/interceptors/idempotency.i
   controllers: [CreditsController],
   providers: [
     CreditsService,
-    CreditStudyAlgorithmService,
+    SamanClient,
     CreditSignatureService,
     CreditStudyPoller,
     IdempotencyInterceptor,

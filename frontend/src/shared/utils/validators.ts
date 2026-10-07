@@ -28,57 +28,80 @@ export function calcNitDv(body: string): string {
 }
 
 /**
- * ¿`value` es `documentNumber` seguido de un dígito (el DV)? Sirve para que la
- * búsqueda encuentre al cliente cuando ya se digitó el NIT completo:
- * `clients.document_number` no guarda el DV.
+ * Número de documento de un cliente tal como se guarda: sin '-', espacios ni
+ * puntos (el DV va aparte). Misma regla que valida el backend.
  */
-export function isDocumentWithDv(value: string, documentNumber: string): boolean {
-  return value.length === documentNumber.length + 1 && value.startsWith(documentNumber);
+export const sanitizeDocumentNumber = (value: string) => value.replace(/[^0-9A-Za-z]/g, '');
+
+/**
+ * ¿`nit` es un NIT completo (cuerpo + DV, solo dígitos) con el DV correcto?
+ * Así se digita y se guarda un NIT en toda la app: 9014902765, sin '-'.
+ */
+export function isValidFullNit(nit: string): boolean {
+  if (!/^\d+$/.test(nit)) return false;
+  const body = nit.slice(0, -1);
+  return body.length >= NIT_MIN_DIGITS && body.length <= NIT_MAX_DIGITS && calcNitDv(body) === nit.slice(-1);
+}
+
+/** Lo que se admite al escribir un NIT: solo dígitos (va completo, con DV y sin '-'). */
+export function sanitizeNitInput(value: string): string {
+  return value.replace(/\D/g, '');
 }
 
 /**
- * Cuerpo del NIT (sin DV) para prellenar la creación de un cliente: si el
- * último dígito es un DV válido se quita; si no, se asume que aún no se digitó.
+ * Número para prellenar la creación de un cliente desde el estudio: el mismo
+ * digitado (NIT completo de una jurídica, o la cédula de una natural).
  */
-export function nitBody(value: string): string {
-  if (value.length > NIT_MIN_DIGITS && calcNitDv(value.slice(0, -1)) === value.slice(-1)) {
-    return value.slice(0, -1);
-  }
-  return value;
-}
+export const documentForNewClient = (value: string) => value;
+
+/** Nombre del documento que se digita en el estudio según el tipo de persona. */
+export const idLabel = (personType: string) => (personType === 'juridica' ? 'NIT' : 'número de identificación');
 
 /**
- * Valida el NIT digitado en el flujo de crédito: documento + dígito de
- * verificación, obligatorio. El cuerpo tiene la longitud del documento (la
- * DIAN admite de 8 a 15 dígitos: NIT de empresa de 9, cédulas de 8 o 10…).
- *
- * Con cliente seleccionado se valida contra su documento, que es el único modo
- * de saber dónde termina el cuerpo. Sin cliente solo se valida la forma. El
- * backend vuelve a comprobarlo (backend/src/modules/credits/nit.ts).
+ * Valida lo digitado en el estudio de crédito (solo dígitos, sin '-'):
+ *   Persona jurídica: NIT completo, con su DV al final. El DV se comprueba
+ *   desde que el número tiene la longitud mínima; con cliente seleccionado debe
+ *   ser su NIT tal cual.
+ *   Persona natural: número de identificación (cédula) sin DV; con cliente
+ *   seleccionado debe ser su cédula.
+ * El backend vuelve a validarlo (backend/src/modules/credits/nit.ts).
  */
-export function validateNit(value: string, documentNumber?: string): NitValidation {
-  if (!/^\d*$/.test(value)) {
-    return { ok: false, error: 'El NIT solo puede contener dígitos.' };
-  }
+export function validateNit(value: string, documentNumber?: string, personType = 'natural'): NitValidation {
+  const juridica = personType === 'juridica';
+  const label = idLabel(personType);
   if (value.length === 0) {
-    return { ok: false, error: 'Ingresa el NIT del cliente.' };
+    return { ok: false, error: `Ingresa el ${label} del cliente.` };
   }
-  if (!documentNumber) {
-    return value.length > NIT_MIN_DIGITS && value.length <= NIT_MAX_DIGITS + 1
-      ? { ok: true, error: '' }
-      : { ok: false, error: 'El NIT debe ser el documento del cliente más el dígito de verificación.' };
+  if (!/^\d+$/.test(value)) {
+    return {
+      ok: false,
+      error: juridica ? "El NIT va completo, con DV y sin '-'." : "El número de identificación va sin DV ni '-', solo dígitos.",
+    };
   }
-  if (value === documentNumber) {
-    return { ok: false, error: 'Falta el dígito de verificación (DV).' };
+
+  if (!juridica) {
+    if (value.length < 5) return { ok: false, error: 'El número de identificación está incompleto.' };
+    if (documentNumber && value !== documentNumber) {
+      return { ok: false, error: 'El número de identificación no corresponde al cliente seleccionado.' };
+    }
+    return { ok: true, error: '' };
   }
-  if (!isDocumentWithDv(value, documentNumber)) {
-    return { ok: false, error: 'El NIT no corresponde al documento del cliente seleccionado.' };
+
+  if (value.length <= NIT_MIN_DIGITS || value.length > NIT_MAX_DIGITS + 1) {
+    return { ok: false, error: 'El NIT va completo: número más dígito de verificación (DV).' };
   }
-  const expected = calcNitDv(documentNumber);
-  if (!expected) {
-    return { ok: false, error: 'El documento del cliente no tiene una longitud de NIT válida.' };
+  // Con cliente seleccionado se distingue "olvidó el DV" de "DV equivocado".
+  if (documentNumber && value === documentNumber.slice(0, -1)) {
+    return { ok: false, error: 'Falta el dígito de verificación (DV) al final del NIT.' };
   }
-  return expected === value.slice(-1)
-    ? { ok: true, error: '' }
-    : { ok: false, error: `El dígito de verificación es ${expected}. Revisa el NIT.` };
+  if (!isValidFullNit(value)) {
+    return {
+      ok: false,
+      error: `El dígito de verificación no coincide: con ese número, el NIT debería terminar en ${calcNitDv(value.slice(0, -1))}.`,
+    };
+  }
+  if (documentNumber && value !== documentNumber) {
+    return { ok: false, error: 'El NIT no corresponde al cliente seleccionado.' };
+  }
+  return { ok: true, error: '' };
 }

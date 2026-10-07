@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { AppBar } from '../../shared/components/AppBar';
@@ -8,7 +8,7 @@ import { ScaleInput } from '../../shared/components/ScaleInput';
 import { SignaturePad } from '../../shared/components/SignaturePad';
 import { httpClient } from '../../shared/api/httpClient';
 import { useTheme } from '../../shared/theme/ThemeContext';
-import { isDocumentWithDv, nitBody, validateNit } from '../../shared/utils/validators';
+import { documentForNewClient, idLabel, sanitizeNitInput, validateNit } from '../../shared/utils/validators';
 import { CONSENT_UI_MODE } from './consentUiMode';
 
 type PersonType = 'natural' | 'juridica';
@@ -20,6 +20,16 @@ type PersonType = 'natural' | 'juridica';
  */
 const SUB_STEP_PARAM = 'paso';
 const IDENTIFICATION = 'identificacion';
+const CONFIRMATION = 'confirmacion';
+
+/** Respuesta de POST /credits/study/preview: lo que se enviará a Saman, sin crear nada. */
+interface StudyPreview {
+  simulated: boolean;
+  endpoint: string;
+  request: { tipo: string; empresa: string; identificacion: string; externas: boolean };
+}
+/** ?desde=<id>: "Corregir y crear de nuevo" rellena el formulario con un borrador anterior. */
+const FROM_PARAM = 'desde';
 
 interface ClientLookup {
   id: string;
@@ -54,14 +64,50 @@ export function CreditStudyPage() {
   const [yearsExperience, setYearsExperience] = useState('');
   const [opportunityValue, setOpportunityValue] = useState('');
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
+  const [preview, setPreview] = useState<StudyPreview | null>(null);
 
   const canCreateClient = moduleContexts['clients']?.permissions.includes('clients.create') ?? false;
 
-  const nitCheck = validateNit(nit, client?.documentNumber);
-  const confirmMatches = nit.length > 0 && nitConfirm === nit;
+  // El NIT se digita completo, con DV y sin '-' (solo dígitos).
+  const digits = nit;
+  const nitCheck = validateNit(nit, client?.documentNumber, personType);
+  const confirmMatches = digits.length > 0 && nitConfirm === digits;
+
+  // "Corregir y crear de nuevo": respuestas, tipo de persona y NIT del borrador
+  // anterior. La firma de autorización no se copia: el cliente firma otra vez.
+  const prefilledFrom = useRef<string | null>(null);
+  const fromId = searchParams.get(FROM_PARAM);
+  useEffect(() => {
+    if (!fromId || prefilledFrom.current === fromId) return;
+    prefilledFrom.current = fromId;
+    httpClient
+      .get(`/credits/${fromId}`)
+      .then(({ data }) => {
+        setPersonType(data.personType === 'juridica' ? 'juridica' : 'natural');
+        if (data.yearsExperience != null) setYearsExperience(String(data.yearsExperience));
+        if (data.opportunityValue != null) setOpportunityValue(String(data.opportunityValue));
+        if (data.reliabilityScore != null) setReliabilityScore(Number(data.reliabilityScore));
+        if (data.nit) setNit(sanitizeNitInput(data.nit));
+      })
+      .catch(() => setError('No se pudieron cargar los datos de la solicitud anterior'));
+  }, [fromId]);
+
+  // Jurídica (NIT) y natural (cédula + DV) se validan distinto: al cambiar de
+  // tipo se empieza de cero para no arrastrar el número ni el cliente del otro caso.
+  const changePersonType = (next: PersonType) => {
+    if (next === personType) return;
+    setPersonType(next);
+    setNit('');
+    setNitConfirm('');
+    setNitTouched(false);
+    setConfirmTouched(false);
+    setClient(null);
+  };
+  const juridica = personType === 'juridica';
+  const idName = idLabel(personType);
 
   useEffect(() => {
-    if (nit.length >= 3) {
+    if (digits.length >= 3) {
       setSearching(true);
       setError('');
       setResults([]);
@@ -72,9 +118,8 @@ export function CreditStudyPage() {
           setResults(
             list.filter(
               (c) =>
-                // El documento no guarda el DV: con el NIT completo, la
-                // coincidencia es "documento + 1 dígito".
-                (c.documentNumber.includes(nit) || isDocumentWithDv(nit, c.documentNumber)) &&
+                // Se digita tal como está guardado: NIT completo (jurídica) o cédula (natural).
+                c.documentNumber.includes(digits) &&
                 (c.personType ?? 'natural') === personType,
             ),
           );
@@ -89,19 +134,31 @@ export function CreditStudyPage() {
       setResults([]);
       setClient(null);
     }
-  }, [nit, personType]);
+  }, [digits, personType]);
 
   const selectClient = (c: ClientLookup) => {
     setClient(c);
     setError('');
   };
 
-  const goCreateClient = () => navigate(`/clients/new?nit=${nitBody(nit)}`);
+  const goCreateClient = () => navigate(`/clients/new?nit=${documentForNewClient(digits)}`);
 
-  const handleSubmit = async () => {
+  const studyPayload = () => ({
+    clientId: client?.id,
+    // Completo, con DV y sin '-'. El guion que espera Saman lo agrega el backend.
+    nit,
+    personType,
+    yearsExperience: Number(yearsExperience),
+    opportunityValue: Number(opportunityValue),
+    reliabilityScore,
+    consentSignature: signatureData,
+  });
+
+  /** 1b → 1c: valida en el front, pide al backend la petición que se enviará a Saman y la muestra. */
+  const goToConfirmation = async () => {
     setError('');
     if (!client) {
-      setError('El NIT no corresponde a un cliente registrado.');
+      setError(`El ${idName} no corresponde a un cliente registrado.`);
       return;
     }
     if (!nitCheck.ok) {
@@ -109,26 +166,31 @@ export function CreditStudyPage() {
       return;
     }
     if (!confirmMatches) {
-      setError('La confirmación del NIT no coincide.');
+      setError(`La confirmación del ${idName} no coincide.`);
       return;
     }
     if (!signatureData) {
       setError('El cliente debe firmar la autorización de tratamiento de datos para continuar.');
       return;
     }
-    if (reliabilityScore === null) return;
     setSubmitting(true);
     try {
-      const res = await httpClient.post('/credits/study', {
-        clientId: client.id,
-        // Con DV: el backend lo verifica y lo guarda como 900123456-7.
-        nit,
-        personType,
-        yearsExperience: Number(yearsExperience),
-        opportunityValue: Number(opportunityValue),
-        reliabilityScore,
-        consentSignature: signatureData,
-      });
+      const res = await httpClient.post('/credits/study/preview', studyPayload());
+      setPreview(res.data);
+      setSearchParams({ [SUB_STEP_PARAM]: CONFIRMATION });
+    } catch (err: any) {
+      setError(err?.response?.data?.message?.message || 'No se pudo validar la solicitud');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /** 1c: crea el borrador y lo envía a Saman. */
+  const handleSubmit = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await httpClient.post('/credits/study', studyPayload());
       // El crédito queda en borrador y el algoritmo lo evalúa: la pantalla de
       // resultado consulta su veredicto. replace: volver atrás no debe reabrir
       // un formulario ya enviado.
@@ -143,7 +205,7 @@ export function CreditStudyPage() {
   const consentSigned = !!signatureData;
   const clientReady = !!client && consentSigned && nitCheck.ok && confirmMatches;
   const nitError = nitTouched && !nitCheck.ok ? nitCheck.error : '';
-  const confirmError = confirmTouched && nit.length > 0 && !confirmMatches ? 'La confirmación no coincide con el NIT.' : '';
+  const confirmError = confirmTouched && nit.length > 0 && !confirmMatches ? `La confirmación no coincide con el ${idName}.` : '';
 
   const years = Number(yearsExperience);
   const opportunity = Number(opportunityValue);
@@ -153,13 +215,21 @@ export function CreditStudyPage() {
     opportunityValue !== '' &&
     opportunity > 0 &&
     reliabilityScore !== null;
-  const onIdentification = searchParams.get(SUB_STEP_PARAM) === IDENTIFICATION;
+  const subStep = searchParams.get(SUB_STEP_PARAM);
+  const onIdentification = subStep === IDENTIFICATION;
+  const onConfirmation = subStep === CONFIRMATION;
 
-  // Entrar directo a 1b (recarga, enlace) sin las respuestas en memoria: se
-  // vuelve a 1a, que es donde se capturan.
+  // Entrar directo a 1b/1c (recarga, enlace) sin lo que vive en memoria: se
+  // vuelve al sub-paso donde se captura.
   useEffect(() => {
-    if (onIdentification && !answersReady) setSearchParams({}, { replace: true });
-  }, [onIdentification, answersReady, setSearchParams]);
+    if ((onIdentification || onConfirmation) && !answersReady) setSearchParams({}, { replace: true });
+    else if (onConfirmation && !preview) setSearchParams({ [SUB_STEP_PARAM]: IDENTIFICATION }, { replace: true });
+  }, [onIdentification, onConfirmation, answersReady, preview, setSearchParams]);
+
+  // Cualquier cambio en los datos deja la vista previa desactualizada: se vuelve a pedir al revisar.
+  useEffect(() => {
+    setPreview(null);
+  }, [client, nit, personType, signatureData, yearsExperience, opportunityValue, reliabilityScore]);
 
   const goToIdentification = () => setSearchParams({ [SUB_STEP_PARAM]: IDENTIFICATION });
 
@@ -201,14 +271,78 @@ export function CreditStudyPage() {
       </div>
     );
 
+  const part = onConfirmation ? 3 : onIdentification ? 2 : 1;
   const subSteps = (
-    <div className="substeps" aria-label={`Paso 1, parte ${onIdentification ? 2 : 1} de 2`}>
-      <span className={onIdentification ? 'done' : 'on'}>1. Evaluación</span>
-      <span className={onIdentification ? 'on' : ''}>2. Identificación</span>
+    <div className="substeps" aria-label={`Paso 1, parte ${part} de 3`}>
+      <span className={part > 1 ? 'done' : 'on'}>1. Evaluación</span>
+      <span className={part > 2 ? 'done' : part === 2 ? 'on' : ''}>2. Identificación</span>
+      <span className={part === 3 ? 'on' : ''}>3. Confirmación</span>
     </div>
   );
 
-  if (!onIdentification) {
+  if (onConfirmation && preview && client) {
+    const req = preview.request;
+    return (
+      <div className="s2 flow crflow">
+        <AppBar title="Estudio de crédito" subtitle="Paso 1 de 4 · Confirmación" logo={logo} />
+        <div className="body credit-body">
+          <CreditStepper current={1} />
+          {subSteps}
+
+          <div className="sectitle">Revisa la solicitud antes de enviarla a estudio</div>
+
+          {preview.simulated && (
+            <div className="note" style={{ marginBottom: 13 }}>
+              <p>
+                <strong>Modo simulado:</strong> SAMAN_API_URL no está configurada; el resultado será simulado y no se
+                consultará Saman.
+              </p>
+            </div>
+          )}
+
+          <div className="card">
+            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: 'var(--faint)', marginBottom: 9 }}>
+              SE ENVIARÁ AL SERVICIO DE ESTUDIO (SAMAN) · {preview.endpoint}
+            </div>
+            <div className="stk"><div className="k">tipo</div><div className="v">{req.tipo}</div></div>
+            <div className="stk"><div className="k">empresa</div><div className="v">{req.empresa || '— (SAMAN_EMPRESA vacía)'}</div></div>
+            <div className="stk"><div className="k">identificacion</div><div className="v">{req.identificacion}</div></div>
+            <div className="stk"><div className="k">externas</div><div className="v">{req.externas ? 'sí (true)' : 'no (false)'}</div></div>
+            <details style={{ marginTop: 10 }}>
+              <summary style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent)', cursor: 'pointer' }}>Ver JSON exacto</summary>
+              <pre className="json-preview">{JSON.stringify(req, null, 2)}</pre>
+            </details>
+          </div>
+
+          <div className="card">
+            <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: 'var(--faint)', marginBottom: 9 }}>
+              SE REGISTRARÁ EN LA SOLICITUD
+            </div>
+            <div className="stk"><div className="k">Cliente</div><div className="v">{client.legalName || client.fullName} · {personType === 'juridica' ? 'persona jurídica' : 'persona natural'}</div></div>
+            <div className="stk"><div className="k">Evaluación comercial</div><div className="v">{yearsExperience} años · ${opportunity.toLocaleString('es-CO')} · confiabilidad {reliabilityScore}/5</div></div>
+            <div className="stk"><div className="k">Autorización de datos</div><div className="v" style={{ color: 'var(--green-deep)' }}>Firmada ✓</div></div>
+          </div>
+
+          {error && <p style={{ color: '#c62828', fontSize: 12, margin: '10px 2px' }}>{error}</p>}
+        </div>
+
+        <div className="action-bar credit-actions">
+          <div className="credit-form-actions">
+            <div className="rowbtn">
+              <button className="btn btn-ghost" disabled={submitting} onClick={() => navigate(-1)}>
+                Volver y corregir
+              </button>
+              <button className="btn btn-primary" disabled={submitting} onClick={handleSubmit}>
+                {submitting ? 'Enviando…' : 'Confirmar y enviar a estudio'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!onIdentification && !onConfirmation) {
     return (
       <div className="s2 flow crflow">
         <AppBar title="Estudio de crédito" subtitle="Paso 1 de 4 · Evaluación" logo={logo} />
@@ -292,7 +426,7 @@ export function CreditStudyPage() {
                 type="radio"
                 name="creditPersonType"
                 checked={personType === 'natural'}
-                onChange={() => setPersonType('natural')}
+                onChange={() => changePersonType('natural')}
               />
               <span>Natural</span>
             </label>
@@ -301,7 +435,7 @@ export function CreditStudyPage() {
                 type="radio"
                 name="creditPersonType"
                 checked={personType === 'juridica'}
-                onChange={() => setPersonType('juridica')}
+                onChange={() => changePersonType('juridica')}
               />
               <span>Jurídica</span>
             </label>
@@ -311,69 +445,73 @@ export function CreditStudyPage() {
 
         <div className="field">
           <label>
-            NIT{' '}
+            {juridica ? "NIT (completo, con DV, sin '-')" : "Número de identificación (sin DV ni '-')"}{' '}
             <span style={{ color: 'var(--faint)', fontWeight: 600 }}>
-              {nit.length < 3 ? 'Digita 3+ dígitos' : searching ? 'Consultando…' : client ? 'Encontrado' : results.length > 0 ? `${results.length} coincidencia(s)` : 'Sin registro'}
+              {digits.length < 3 ? 'Digita 3+ dígitos' : searching ? 'Consultando…' : client ? 'Encontrado' : results.length > 0 ? `${results.length} coincidencia(s)` : 'Sin registro'}
             </span>
           </label>
           <input
             className="inp"
             inputMode="numeric"
-            maxLength={16}
+            maxLength={17}
             value={nit}
             onChange={(e) => {
-              setNit(e.target.value.replace(/\D/g, ''));
+              setNit(sanitizeNitInput(e.target.value));
               setNitTouched(true);
             }}
             onBlur={() => setNitTouched(true)}
-            placeholder="Ej. 9012345678"
+            placeholder={juridica ? 'Ej. 9014902765' : 'Ej. 11276427'}
             style={nitError ? { borderColor: '#e11225' } : undefined}
           />
           <div className="help">
             {nitError ? (
               <span style={{ color: '#c62828', fontWeight: 600 }}>{nitError}</span>
             ) : (
-              'Documento del cliente más el dígito de verificación (DV). La búsqueda inicia desde los 3 dígitos.'
+              personType === 'juridica'
+                ? "NIT completo, con su dígito de verificación (DV) al final y sin '-'. La búsqueda inicia desde los 3 dígitos."
+                : "Número de cédula del cliente, solo dígitos: sin DV ni '-'. La búsqueda inicia desde los 3 dígitos."
             )}
           </div>
         </div>
 
         <div className="field">
-          <label>Confirmación de NIT</label>
+          <label>{juridica ? 'Confirmación de NIT' : 'Confirmación del número de identificación'}</label>
           <input
             className="inp"
             inputMode="numeric"
-            maxLength={16}
+            maxLength={17}
             value={nitConfirm}
             onChange={(e) => {
-              setNitConfirm(e.target.value.replace(/\D/g, ''));
+              setNitConfirm(sanitizeNitInput(e.target.value));
               setConfirmTouched(true);
             }}
             onBlur={() => setConfirmTouched(true)}
-            placeholder="Ej. 9012345678"
+            placeholder={juridica ? 'Ej. 9014902765' : 'Ej. 11276427'}
             style={confirmError ? { borderColor: '#e11225' } : undefined}
           />
           <div className="help">
             {confirmError ? (
               <span style={{ color: '#c62828', fontWeight: 600 }}>{confirmError}</span>
             ) : (
-              'Repite el NIT para confirmar que no hay errores de digitación.'
+              juridica
+                ? "Repite el NIT completo, con DV y sin '-', para confirmar que no hay errores de digitación."
+                : "Repite el número de identificación, sin DV ni '-', para confirmar que no hay errores de digitación."
             )}
           </div>
         </div>
 
-        {nit.length < 3 && (
+        {digits.length < 3 && (
           <div className="empty" style={{ background: '#fff', border: '1.5px dashed #dbe4ef', borderRadius: 16, textAlign: 'center', padding: '26px 16px', marginBottom: 13 }}>
             <svg viewBox="0 0 24 24" fill="none" width="30" height="30" color="#c3cede"><path d="M4 20V9l8-5 8 5v11" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M9 20v-6h6v6" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
-            <div>Esperando el NIT para consultar los datos del cliente</div>
+            <div>Esperando el {idName} para consultar los datos del cliente</div>
           </div>
         )}
 
-        {nit.length >= 3 && searching && (
+        {digits.length >= 3 && searching && (
           <p style={{ color: 'var(--muted)', fontSize: 12, padding: '15px 3px' }}>Consultando…</p>
         )}
 
-        {nit.length >= 3 && !searching && !client && results.length > 0 && (
+        {digits.length >= 3 && !searching && !client && results.length > 0 && (
           <div>
             <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: 'var(--faint)', margin: '6px 2px 10px' }}>SELECCIONA UN CLIENTE</div>
             {results.map((c) => (
@@ -396,9 +534,9 @@ export function CreditStudyPage() {
           <>
             <div className="card" style={{ borderColor: '#cfe8d9', background: '#f4fbf6' }}>
               <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: 'var(--green-deep)', marginBottom: 9 }}>DATOS TRAÍDOS AUTOMÁTICAMENTE</div>
-              <div className="stk"><div className="k">Razón social</div><div className="v">{client.legalName || client.fullName}</div></div>
+              <div className="stk"><div className="k">{juridica ? 'Razón social' : 'Nombre'}</div><div className="v">{client.legalName || client.fullName}</div></div>
               <div className="stk"><div className="k">Tipo de persona</div><div className="v">{personType === 'juridica' ? 'Jurídica' : 'Natural'}</div></div>
-              <div className="stk"><div className="k">NIT</div><div className="v">{client.documentNumber}</div></div>
+              <div className="stk"><div className="k">{juridica ? 'NIT' : 'Cédula'}</div><div className="v">{client.documentNumber}</div></div>
               {client.city && <div className="stk"><div className="k">Ciudad</div><div className="v">{client.city}</div></div>}
               <button className="btn btn-ghost" style={{ marginTop: 12, height: 44 }} onClick={() => { setClient(null); setNit(''); setNitConfirm(''); setNitTouched(false); setConfirmTouched(false); }}>
                 Cambiar cliente
@@ -415,7 +553,7 @@ export function CreditStudyPage() {
           </>
         )}
 
-        {nit.length >= 3 && !searching && !client && results.length === 0 && (
+        {digits.length >= 3 && !searching && !client && results.length === 0 && (
           <div className="card" style={{ textAlign: 'center', borderColor: '#f6caca', background: '#fdecec' }}>
             <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.1em', color: '#b00020', marginBottom: 9 }}>CLIENTE NO ENCONTRADO</div>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>No existe un cliente registrado que coincida con {nit}.</div>
@@ -439,11 +577,11 @@ export function CreditStudyPage() {
 
       <div className="action-bar credit-actions">
         <div className="credit-form-actions">
-          <button className="btn btn-primary" disabled={!clientReady || submitting} onClick={handleSubmit}>
-            {submitting ? 'Enviando solicitud…' : 'Solicitar estudio de crédito'}
+          <button className="btn btn-primary" disabled={!clientReady || submitting} onClick={goToConfirmation}>
+            {submitting ? 'Validando…' : 'Revisar solicitud'}
             <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
-          <div className="bhelp">Se habilita al validar el NIT, confirmarlo y firmar la autorización de datos</div>
+          <div className="bhelp">Se habilita al validar el {idName}, confirmarlo y firmar la autorización de datos. Antes de enviar verás la solicitud completa.</div>
         </div>
       </div>
 

@@ -8,10 +8,31 @@ import { canCancel, resumePath, statusMeta } from './creditStatus';
 interface Credit {
   id: string;
   clientId: string;
-  requestedAmount: string;
+  approvedLimit: string | null;
   status: string;
   client?: { fullName: string };
+  algorithmResult?: { error?: { type: string; streak?: number } | null } | null;
 }
+
+/** Errores de Saman que el asesor debe ver en la lista (el transitorio se reintenta solo). */
+const ALGORITHM_ERROR_LABEL: Record<string, { text: string; color: string }> = {
+  definitive: { text: 'Error de validación', color: '#b00020' },
+  failed: { text: 'Estudio fallido', color: '#8a6d00' },
+  auth: { text: 'Servicio no disponible', color: '#8a6d00' },
+  offline: { text: 'Sin conexión con Saman', color: '#8a6d00' },
+};
+
+/** Cupo de la tarjeta: el aprobado; en borrador aún se evalúa; rechazado/cancelado no tiene. */
+function approvedLimitText(c: Credit): string {
+  if (c.approvedLimit != null && !['rejected', 'cancelled'].includes(c.status)) {
+    return `$${Number(c.approvedLimit).toLocaleString('es-CO')}`;
+  }
+  return c.status === 'draft' ? 'En evaluación' : '—';
+}
+
+/** Un error de red aislado se reintenta solo; desde 3 seguidos se avisa "sin conexión". */
+const algorithmErrorKey = (error?: { type: string; streak?: number } | null) =>
+  error?.type === 'transient' ? ((error.streak ?? 1) >= 3 ? 'offline' : '') : (error?.type ?? '');
 
 export function CreditsListPage() {
   const { moduleContexts, loadModuleContext } = useAuth();
@@ -63,6 +84,8 @@ export function CreditsListPage() {
 
         {credits.map((c) => {
           const { label, color } = statusMeta(c.status);
+          const algorithmError =
+            c.status === 'draft' ? ALGORITHM_ERROR_LABEL[algorithmErrorKey(c.algorithmResult?.error)] : undefined;
           const actions: ReactNode[] = [];
           // Se retoma en la pantalla que corresponde al estado; rechazados y
           // cancelados ya no se retoman (solo queda el expediente).
@@ -72,6 +95,15 @@ export function CreditsListPage() {
             actions.push(
               <button key="resume" className="btn btn-primary" onClick={() => navigate(resume)}>
                 {c.status === 'signed' ? 'Ver estado' : 'Retomar'}
+              </button>
+            );
+          }
+          // Un rechazado ya no se retoma, pero su resultado (paso 2) se puede consultar
+          // para ver el motivo. Misma ruta y permiso que el resultado de los demás.
+          if (c.status === 'rejected' && has('credits.study')) {
+            actions.push(
+              <button key="result" className="btn btn-ghost" onClick={() => navigate(`/credits/result/${c.id}`)}>
+                Ver resultado
               </button>
             );
           }
@@ -97,6 +129,11 @@ export function CreditsListPage() {
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', wordBreak: 'break-word' }}>
                     {c.client?.fullName || c.clientId}
                   </div>
+                  {algorithmError && (
+                    <div style={{ fontSize: 11, fontWeight: 700, color: algorithmError.color, marginTop: 3 }}>
+                      ⚠ {algorithmError.text}
+                    </div>
+                  )}
                   <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 2 }}>Solicitud {c.id.slice(0, 8)}</div>
                 </div>
                 <span
@@ -114,13 +151,13 @@ export function CreditsListPage() {
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>Monto solicitado</span>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>Cupo aprobado</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                  ${Number(c.requestedAmount).toLocaleString()}
+                  {approvedLimitText(c)}
                 </span>
               </div>
               {actions.length > 0 && (
-                <div className="rowbtn" style={{ marginTop: 12 }}>
+                <div className="rowbtn" style={{ marginTop: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   {actions}
                 </div>
               )}

@@ -25,10 +25,11 @@ export function statusMeta(status: string) {
  */
 export function resumePath(id: string, status: string): string | null {
   switch (status) {
+    // Pre-aprobado también vuelve al resultado (veredicto, motivo y condiciones
+    // de pago); desde ahí se continúa a la firma.
     case 'draft':
-      return `/credits/result/${id}`;
     case 'pre_approved':
-      return `/credits/sign/${id}`;
+      return `/credits/result/${id}`;
     case 'pending_signatures':
     case 'signed':
       return `/credits/success/${id}`;

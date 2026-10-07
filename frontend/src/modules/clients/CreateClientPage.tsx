@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { httpClient } from '../../shared/api/httpClient';
 import { AddressBuilderModal } from '../../shared/components/AddressBuilderModal';
 import { useBackTarget } from '../../shared/layout/TopBarContext';
+import { calcNitDv, isValidFullNit, sanitizeDocumentNumber } from '../../shared/utils/validators';
 
 const ACTIVIDADES: Array<[string, string]> = [
   ['0111', 'Cultivo de cereales'], ['0113', 'Cultivo de hortalizas'], ['0121', 'Cultivo de frutas tropicales'],
@@ -71,6 +72,13 @@ export function CreateClientPage() {
   const [error, setError] = useState('');
 
   const set = (key: string, value: any) => setForm((prev) => ({ ...prev, [key]: value }));
+  // Un NIT se digita completo (con DV, sin '-'): su DV es el último dígito. Para
+  // otros documentos el número va sin DV y el DV se calcula (módulo 11).
+  const isNit = form.documentType === 'nit';
+  const doc: string = form.documentNumber || '';
+  const nitInvalid = isNit && doc.length > 0 && !isValidFullNit(doc);
+  // Solo el NIT lleva DV (su último dígito); la cédula y otros documentos no tienen.
+  const dv = isNit && isValidFullNit(doc) ? doc.slice(-1) : '';
   const bool = (key: string) => (v: string) => set(key, v === 'si');
 
   async function handleSubmit() {
@@ -84,11 +92,13 @@ export function CreateClientPage() {
       form.commercialName;
     if (!fullName) { setError('El nombre completo es obligatorio'); return; }
     if (!form.documentNumber) { setError('El número de documento es obligatorio'); return; }
+    if (nitInvalid) { setError("El NIT va completo, con su DV al final y sin '-'"); return; }
     const payload = {
       ...form,
       phone: form.phone || '',
       fullName,
       documentNumber: form.documentNumber,
+      dv: dv || undefined,
       personType: personType || undefined,
       directions: [
         principal.built || principal.department || principal.city ? { kind: 'principal', ...principal, address: principal.built } : null,
@@ -152,13 +162,30 @@ export function CreateClientPage() {
 
             <div className="row2">
               <div className="field" style={{ flex: 2 }}>
-                <label>Número de documento</label>
-                <input className="inp" placeholder="* Número de documento" value={form.documentNumber || ''} onChange={(e) => set('documentNumber', e.target.value)} maxLength={19} />
+                <label>{isNit ? "NIT completo, con DV y sin '-'" : "Número de documento (sin '-')"}</label>
+                <input
+                  className="inp"
+                  placeholder={isNit ? '* Ej. 9014902765' : "* Número de documento, sin '-'"}
+                  value={form.documentNumber || ''}
+                  onChange={(e) => set('documentNumber', sanitizeDocumentNumber(e.target.value))}
+                  maxLength={20}
+                  style={nitInvalid ? { borderColor: '#e11225' } : undefined}
+                />
+                {nitInvalid && (
+                  <div className="help" style={{ color: '#c62828', fontWeight: 600 }}>
+                    {/^\d{9,16}$/.test(doc)
+                      ? `El DV no coincide: con ese número debería terminar en ${calcNitDv(doc.slice(0, -1))}.`
+                      : 'Escribe el NIT completo: número más DV.'}
+                  </div>
+                )}
               </div>
-              <div className="field" style={{ flex: 1 }}>
-                <label>DV</label>
-                <input className="inp" placeholder="DV" value="0" readOnly />
-              </div>
+              {isNit && (
+                <div className="field" style={{ flex: 1 }}>
+                  <label>DV</label>
+                  {/* El último dígito del NIT digitado. */}
+                  <input className="inp" placeholder="DV" value={dv || '—'} readOnly />
+                </div>
+              )}
             </div>
 
             {personType === 'natural' && (

@@ -9,7 +9,6 @@ import { resumePath, statusMeta } from './creditStatus';
 interface SignCredit {
   id: string;
   applicationNumber: string;
-  requestedAmount: string;
   approvedLimit: string;
   status: string;
   client?: {
@@ -116,7 +115,7 @@ export function CreditSignPage() {
           <div className="stk"><div className="k">Cliente</div><div className="v">{clientName}</div></div>
           <div className="stk"><div className="k">NIT</div><div className="v">{credit.client?.documentNumber}</div></div>
           <div className="stk"><div className="k">Solicitud</div><div className="v">{credit.applicationNumber || '—'}</div></div>
-          <div className="stk"><div className="k">Cupo pre-aprobado</div><div className="v" style={{ color: 'var(--green-deep)' }}>${Number(credit.approvedLimit || credit.requestedAmount).toLocaleString('es-CO')}</div></div>
+          <div className="stk"><div className="k">Cupo pre-aprobado</div><div className="v" style={{ color: 'var(--green-deep)' }}>${Number(credit.approvedLimit).toLocaleString('es-CO')}</div></div>
         </div>
 
         <div className="field" style={{ marginBottom: 10 }}>
