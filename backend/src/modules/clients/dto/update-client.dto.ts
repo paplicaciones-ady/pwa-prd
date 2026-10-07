@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, Length, IsEnum } from 'class-validator';
+import { IsString, IsEmail, IsOptional, Length, IsEnum, Matches } from 'class-validator';
 import { ClientStatus } from '../entities/client.entity';
 
 export class UpdateClientDto {
@@ -7,6 +7,7 @@ export class UpdateClientDto {
   @IsOptional()
   fullName?: string;
 
+  @Matches(/^[0-9A-Za-z]+$/, { message: "El número de documento va sin '-', espacios ni puntos" })
   @IsString()
   @Length(1, 20)
   @IsOptional()

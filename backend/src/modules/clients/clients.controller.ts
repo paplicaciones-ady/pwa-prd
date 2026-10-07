@@ -8,8 +8,10 @@ import { PaginationQueryDto } from '../../commons/dto/pagination.dto';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { CreateSharedClientDto } from './dto/create-shared-client.dto';
 import { RbacService } from '../rbac/rbac.service';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
+import { SuperAdminGuard } from '../../commons/guards/super-admin.guard';
 
 @Controller('clients')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -28,6 +30,37 @@ export class ClientsController {
       Object.entries(allFlags).filter(([k]) => k.toLowerCase().includes('client')),
     );
     return { permissions, featureFlags };
+  }
+
+  // --- Padrón compartido (company_id NULL): solo superadmin (SuperAdminGuard), desde Configuración global ---
+  // Van antes de las rutas ':id' para que 'shared' no se tome como un id.
+
+  @Get('shared')
+  @UseGuards(SuperAdminGuard)
+  @Permissions('clients.read')
+  findShared() {
+    return this.service.findShared();
+  }
+
+  @Post('shared')
+  @UseGuards(SuperAdminGuard)
+  @Permissions('clients.create')
+  createShared(@Body() dto: CreateSharedClientDto) {
+    return this.service.createShared(dto);
+  }
+
+  @Patch('shared/:id')
+  @UseGuards(SuperAdminGuard)
+  @Permissions('clients.update')
+  updateShared(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateClientDto) {
+    return this.service.updateShared(id, dto);
+  }
+
+  @Patch('shared/:id/status')
+  @UseGuards(SuperAdminGuard)
+  @Permissions('clients.update')
+  toggleSharedStatus(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.service.toggleSharedStatus(id);
   }
 
   @Get()

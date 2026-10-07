@@ -1,12 +1,14 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
-import { Client, ClientStatus } from './entities/client.entity';
+import { Client, ClientDocumentType, ClientStatus } from './entities/client.entity';
 import { ClientDirection, ClientDirectionType } from './entities/client-direction.entity';
 import { ClientReference } from './entities/client-reference.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { CreateSharedClientDto } from './dto/create-shared-client.dto';
 import { clampPagination } from '../../commons/dto/pagination.dto';
+import { calcNitDv, isValidFullNit } from '../../commons/utils/nit';
 
 @Injectable()
 export class ClientsService {
@@ -68,6 +70,7 @@ export class ClientsService {
 
   async create(companyId: string, dto: CreateClientDto) {
     const { directions, references, ...rest } = dto;
+    Object.assign(rest, nitFields(rest.documentType, rest.documentNumber));
     return this.dataSource.transaction(async (manager) => {
       const client = await manager.save(manager.create(Client, { ...rest, companyId }));
 
@@ -124,8 +127,50 @@ export class ClientsService {
 
   async update(id: string, companyId: string, dto: UpdateClientDto) {
     const client = await this.ownedByTenant(id, companyId);
-    Object.assign(client, dto);
+    Object.assign(client, dto, nitFields(client.documentType, dto.documentNumber));
     return this.repo.save(client);
+  }
+
+  // --- Padrón compartido (company_id NULL): lo administra solo el superadmin ---
+  // Las empresas lo ven en solo lectura (ver ownedByTenant). El control de que
+  // quien llama es superadmin está en el controller.
+
+  findShared() {
+    return this.repo.find({ where: { companyId: IsNull() }, order: { fullName: 'ASC' } });
+  }
+
+  async createShared(dto: CreateSharedClientDto) {
+    const nit = nitFields(dto.documentType, dto.documentNumber);
+    await this.ensureDocumentFree(dto.documentNumber);
+    return this.repo.save(this.repo.create({ ...dto, ...nit, companyId: null }));
+  }
+
+  async updateShared(id: string, dto: UpdateClientDto) {
+    const client = await this.sharedOrFail(id);
+    const nit = nitFields(client.documentType, dto.documentNumber);
+    if (dto.documentNumber && dto.documentNumber !== client.documentNumber) {
+      await this.ensureDocumentFree(dto.documentNumber);
+    }
+    Object.assign(client, dto, nit);
+    return this.repo.save(client);
+  }
+
+  /** document_number es único en toda la tabla: se valida antes para responder 409 y no un 500. */
+  private async ensureDocumentFree(documentNumber: string) {
+    const taken = await this.repo.findOne({ where: { documentNumber }, withDeleted: true, select: ['id'] });
+    if (taken) throw new ConflictException('Ya existe un cliente con ese número de documento');
+  }
+
+  async toggleSharedStatus(id: string) {
+    const client = await this.sharedOrFail(id);
+    client.status = client.status === ClientStatus.ACTIVE ? ClientStatus.INACTIVE : ClientStatus.ACTIVE;
+    return this.repo.save(client);
+  }
+
+  private async sharedOrFail(id: string) {
+    const client = await this.repo.findOne({ where: { id, companyId: IsNull() } });
+    if (!client) throw new NotFoundException('Cliente del padrón compartido no encontrado');
+    return client;
   }
 
   async toggleStatus(id: string, companyId: string) {
@@ -171,4 +216,18 @@ export class ClientsService {
 
     throw new NotFoundException();
   }
+}
+
+/**
+ * Un NIT se digita y se guarda completo, con DV y sin '-' (9014902765). Si el
+ * documento es NIT se valida el DV y se deja también en la columna `dv`.
+ * Devuelve los campos a fusionar ({} si no aplica).
+ */
+function nitFields(documentType: string | null | undefined, documentNumber: string | undefined): { dv?: string } {
+  if (documentType !== ClientDocumentType.NIT || !documentNumber) return {};
+  if (!isValidFullNit(documentNumber)) {
+    const hint = /^\d{9,16}$/.test(documentNumber) ? ` (con ese número, el DV sería ${calcNitDv(documentNumber.slice(0, -1))})` : '';
+    throw new BadRequestException(`El NIT va completo, con su DV al final y sin '-'${hint}`);
+  }
+  return { dv: documentNumber.slice(-1) };
 }

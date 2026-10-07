@@ -1,7 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsString, IsEmail, IsOptional, Length, IsEnum, ValidateNested, IsArray, IsBoolean,
-} from 'class-validator';
+import { IsString, IsEmail, IsOptional, Length, IsEnum, ValidateNested, IsArray, IsBoolean, Matches } from 'class-validator';
 import { ClientDocumentType, ClientPersonType } from '../entities/client.entity';
 
 export class CreateClientDirectionDto {
@@ -80,6 +78,7 @@ export class CreateClientDto {
   @Length(1, 200)
   fullName: string;
 
+  @Matches(/^[0-9A-Za-z]+$/, { message: "El número de documento va sin '-', espacios ni puntos" })
   @IsString()
   @Length(1, 20)
   documentNumber: string;
