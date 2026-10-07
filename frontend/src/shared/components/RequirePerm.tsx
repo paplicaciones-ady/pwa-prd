@@ -10,9 +10,17 @@ interface RequirePermProps {
 
 export function RequirePerm({ module, perm, children }: RequirePermProps) {
   const { moduleContexts, loadModuleContext } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const hasContext = !!moduleContexts[module];
+  const [loading, setLoading] = useState(!hasContext);
 
+  // Solo carga (y muestra "Cargando permisos…") si el contexto aún no está: así
+  // un cambio en AuthProvider no desmonta la pantalla ni repite sus peticiones,
+  // y no se pierde lo que el usuario tenga en memoria (p. ej. el estudio de crédito).
   useEffect(() => {
+    if (hasContext) {
+      setLoading(false);
+      return;
+    }
     let mounted = true;
     setLoading(true);
     loadModuleContext(module)
@@ -23,7 +31,7 @@ export function RequirePerm({ module, perm, children }: RequirePermProps) {
     return () => {
       mounted = false;
     };
-  }, [module, loadModuleContext]);
+  }, [module, hasContext, loadModuleContext]);
 
   if (loading) {
     return (

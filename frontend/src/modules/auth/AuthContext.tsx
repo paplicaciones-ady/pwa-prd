@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useRef, useState, useEffect, ReactNode } from 'react';
 import { httpClient } from '../../shared/api/httpClient';
 import { getApiError, isSessionInvalidating, type ApiError } from '../../shared/api/apiError';
 
@@ -139,11 +139,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadBootstrap();
   }, [loadBootstrap]);
 
-  const loadModuleContext = async (moduleName: string) => {
-    if (moduleContexts[moduleName]) return;
-    const res = await httpClient.get(`/${moduleName}/context`);
-    setModuleContexts((prev) => ({ ...prev, [moduleName]: res.data }));
-  };
+  // Estable (useCallback) y con caché leída por ref: si cambiara en cada render,
+  // los efectos que dependen de ella (RequirePerm) se re-ejecutarían en cada
+  // cambio de AuthProvider, desmontando la pantalla y repitiendo sus peticiones.
+  const moduleContextsRef = useRef(moduleContexts);
+  moduleContextsRef.current = moduleContexts;
+  const pendingContexts = useRef(new Map<string, Promise<void>>());
+  const loadModuleContext = useCallback(async (moduleName: string) => {
+    if (moduleContextsRef.current[moduleName]) return;
+    // Varias pantallas pidiendo el mismo contexto a la vez comparten la petición.
+    const pending = pendingContexts.current.get(moduleName);
+    if (pending) return pending;
+    const request = httpClient
+      .get(`/${moduleName}/context`)
+      .then((res) => setModuleContexts((prev) => ({ ...prev, [moduleName]: res.data })))
+      .finally(() => pendingContexts.current.delete(moduleName));
+    pendingContexts.current.set(moduleName, request);
+    return request;
+  }, []);
 
   const refreshBootstrap = async () => {
     const res = await httpClient.get('/me/bootstrap');
