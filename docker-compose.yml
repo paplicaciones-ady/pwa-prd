@@ -2,6 +2,10 @@
 #   edge    — expuesta al host: frontend (vite) y kong. Único frontal.
 #   backend — internal (sin egreso a internet): kong ↔ backend ↔ redis.
 #   data    — internal: backend ↔ postgres (+ redis legado, ver abajo).
+#   egress_proxy — internal: backend ↔ egress-proxy.
+#   egress  — con salida a Internet, SOLO para egress-proxy (squid con lista
+#             blanca, ver egress-proxy/squid.conf). El backend llega a Saman a
+#             través de él (SAMAN_HTTPS_PROXY); no tiene egreso directo.
 # Publicamos puertos al host SOLO desde servicios de `edge`/publicados a
 # loopback para el desarrollo nativo (WSL): postgres 5433, redis 6379.
 #
@@ -49,6 +53,16 @@ services:
       timeout: 3s
       retries: 10
 
+  # Proxy de salida con lista blanca (egress-proxy/squid.conf): única vía del
+  # backend hacia Internet, solo HTTPS a los destinos permitidos (Saman).
+  egress-proxy:
+    image: ubuntu/squid:6.6-24.04_edge
+    container_name: pwa-egress-proxy
+    restart: unless-stopped
+    networks: [egress_proxy, egress]
+    volumes:
+      - ./egress-proxy/squid.conf:/etc/squid/squid.conf:ro
+
   backend:
     build:
       context: ./backend
@@ -56,10 +70,15 @@ services:
       target: development
     container_name: pwa-backend
     restart: unless-stopped
-    networks: [backend, data]
+    networks: [backend, data, egress_proxy]
     env_file:
       - ./backend/.env
+    environment:
+      # Salida a Saman por el proxy con lista blanca (sin egreso directo).
+      SAMAN_HTTPS_PROXY: http://egress-proxy:3128
     depends_on:
+      egress-proxy:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -148,6 +167,11 @@ networks:
   data:
     driver: bridge
     internal: true
+  egress_proxy:
+    driver: bridge
+    internal: true
+  egress:
+    driver: bridge
 
 volumes:
   pgdata:

@@ -2,6 +2,10 @@
 #   edge    — expuesta al host: frontend (nginx, loopback) y kong (loopback).
 #   backend — internal: kong ↔ backend ↔ redis.
 #   data    — internal: backend ↔ postgres (+ redis de cache).
+#   egress_proxy — internal: backend ↔ egress-proxy.
+#   egress  — con salida a Internet, SOLO para egress-proxy (squid con lista
+#             blanca, ver egress-proxy/squid.conf). El backend llega a Saman a
+#             través de él (SAMAN_HTTPS_PROXY); no tiene egreso directo.
 # Ningún servicio de `data`/`backend` tiene egreso a internet ni puertos
 # publicados (excepto el loopback del kong para el reverse proxy del host).
 services:
@@ -66,6 +70,21 @@ services:
       timeout: 3s
       retries: 10
 
+  # Proxy de salida con lista blanca (egress-proxy/squid.conf): única vía del
+  # backend hacia Internet, solo HTTPS a los destinos permitidos (Saman).
+  egress-proxy:
+    image: ubuntu/squid:6.6-24.04_edge
+    container_name: pwa-egress-proxy
+    restart: unless-stopped
+    networks: [egress_proxy, egress]
+    volumes:
+      - ./egress-proxy/squid.conf:/etc/squid/squid.conf:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     build:
       context: ./backend
@@ -73,9 +92,12 @@ services:
       target: production
     container_name: pwa-backend
     restart: unless-stopped
-    networks: [backend, data]
+    networks: [backend, data, egress_proxy]
     env_file:
       - ./backend/.env.prod
+    environment:
+      # Salida a Saman por el proxy con lista blanca (sin egreso directo).
+      SAMAN_HTTPS_PROXY: http://egress-proxy:3128
     # Migraciones automáticas en cada deploy, antes de levantar el servidor.
     # Se ejecutan con DB_MIGRATE_AS_OWNER=true para conectar como DB_USER
     # (owner, puede hacer DDL) aunque el runtime use DB_APP_USER. Las variables
@@ -95,6 +117,8 @@ services:
         max-size: "10m"
         max-file: "3"
     depends_on:
+      egress-proxy:
+        condition: service_started
       postgres:
         condition: service_healthy
       redis:
@@ -195,6 +219,11 @@ networks:
   data:
     driver: bridge
     internal: true
+  egress_proxy:
+    driver: bridge
+    internal: true
+  egress:
+    driver: bridge
 
 volumes:
   pgdata:
