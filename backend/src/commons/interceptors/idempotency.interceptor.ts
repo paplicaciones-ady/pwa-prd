@@ -6,8 +6,8 @@ import {
   Inject,
   ConflictException,
 } from '@nestjs/common';
-import { Observable, EMPTY } from 'rxjs';
-import { map, tap } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
+import { finalize, mergeMap } from 'rxjs/operators';
 import { createHash } from 'crypto';
 import Redis from 'ioredis';
 
@@ -46,17 +46,24 @@ export class IdempotencyInterceptor implements NestInterceptor {
       .update(`${actor}:${req.originalUrl || req.url}:${key}`)
       .digest('hex')}`;
 
-    try {
-      const existing = await this.redis.get(cacheKey);
-      if (existing) {
+    // La respuesta guardada se devuelve como valor del flujo para que Nest la
+    // envíe una sola vez. Escribirla a mano (res.json) y devolver EMPTY hacía
+    // que Nest lanzara EmptyError e intentara responder de nuevo
+    // (ERR_HTTP_HEADERS_SENT), lo que tumbaba el proceso ante un reintento.
+    const replay = async (): Promise<Observable<unknown> | null> => {
+      try {
+        const existing = await this.redis.get(cacheKey);
+        if (!existing) return null;
         const stored = JSON.parse(existing) as { body: unknown; status: number };
-        const res = context.switchToHttp().getResponse();
-        res.status(stored.status ?? 200).json(stored.body);
-        return EMPTY;
+        context.switchToHttp().getResponse().status(stored.status ?? 200);
+        return of(stored.body);
+      } catch {
+        return null; // Redis caído: continuar sin dedupe esta request.
       }
-    } catch {
-      // Redis caído: continuar sin dedupe esta request.
-    }
+    };
+
+    const cached = await replay();
+    if (cached) return cached;
 
     const lockKey = `${cacheKey}:lock`;
     let acquired: 'OK' | null | undefined;
@@ -73,17 +80,26 @@ export class IdempotencyInterceptor implements NestInterceptor {
       if (acquired) this.redis.del(lockKey).catch(() => undefined);
     };
 
+    // Segunda lectura ya con el lock: la operación original pudo terminar (y
+    // liberar el lock) entre la primera lectura y este punto.
+    const cachedAfterLock = await replay();
+    if (cachedAfterLock) {
+      release();
+      return cachedAfterLock;
+    }
+
+    // El resultado se guarda ANTES de liberar el lock: si se liberara primero, un
+    // duplicado que llegue en ese hueco no vería ni lock ni resultado y
+    // re-ejecutaría la operación.
     return next.handle().pipe(
-      map((value) => {
+      mergeMap(async (value) => {
         const res = context.switchToHttp().getResponse();
         const body = value ?? { success: true };
         const status = res.statusCode && res.statusCode !== 200 ? res.statusCode : (method === 'POST' ? 201 : 200);
-        this.redis
-          .set(cacheKey, JSON.stringify({ body, status }), 'EX', RESULT_TTL_SECONDS)
-          .catch(() => undefined);
+        await this.redis.set(cacheKey, JSON.stringify({ body, status }), 'EX', RESULT_TTL_SECONDS).catch(() => undefined);
         return body;
       }),
-      tap({ complete: release, error: release }),
+      finalize(release),
     );
   }
 }
