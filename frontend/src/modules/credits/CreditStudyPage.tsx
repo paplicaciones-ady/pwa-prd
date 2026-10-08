@@ -5,7 +5,7 @@ import { AppBar } from '../../shared/components/AppBar';
 import { CreditStepper } from '../../shared/components/CreditStepper';
 import { Modal } from '../../shared/components/Modal';
 import { ScaleInput } from '../../shared/components/ScaleInput';
-import { SignaturePad } from '../../shared/components/SignaturePad';
+import { SignatureFullscreen, SignaturePad, useIsPhone } from '../../shared/components/SignaturePad';
 import { httpClient } from '../../shared/api/httpClient';
 import { useTheme } from '../../shared/theme/ThemeContext';
 import { documentForNewClient, idLabel, sanitizeNitInput, validateNit } from '../../shared/utils/validators';
@@ -59,6 +59,9 @@ export function CreditStudyPage() {
   // backend deriva consent_data de que esta data URL exista.
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [showConsent, setShowConsent] = useState(false);
+  // En teléfono el check abre la firma a pantalla completa y en horizontal,
+  // sea cual sea CONSENT_UI_MODE.
+  const isPhone = useIsPhone();
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [yearsExperience, setYearsExperience] = useState('');
@@ -250,7 +253,7 @@ export function CreditStudyPage() {
   // Las dos variantes de UI comparten el mismo estado: solo cambia dónde se
   // despliega el pad y cómo se abre (ver consentUiMode.ts).
   const consentCard =
-    CONSENT_UI_MODE === 'modal' ? (
+    CONSENT_UI_MODE === 'modal' || isPhone ? (
       <div
         className={`check ${consentSigned ? 'on' : ''}`}
         onClick={() => setShowConsent(true)}
@@ -585,7 +588,23 @@ export function CreditStudyPage() {
         </div>
       </div>
 
-      {CONSENT_UI_MODE === 'modal' && (
+      {isPhone && (
+        <SignatureFullscreen
+          open={showConsent}
+          title="Autorización de datos personales"
+          confirmLabel="Confirmar autorización"
+          onCancel={() => setShowConsent(false)}
+          onConfirm={(data) => {
+            setSignatureData(data);
+            setShowConsent(false);
+          }}
+        >
+          El cliente autoriza a la empresa a tratar sus datos personales y a consultar centrales de riesgo. La
+          firma queda archivada como documento del expediente.
+        </SignatureFullscreen>
+      )}
+
+      {CONSENT_UI_MODE === 'modal' && !isPhone && (
         <Modal open={showConsent} onClose={() => setShowConsent(false)}>
           <div className="sectitle">Autorización de datos personales</div>
           <div className="note" style={{ marginBottom: 13 }}>

@@ -1547,13 +1547,85 @@ input, select, textarea {
   overflow: hidden;
   margin-bottom: 10px;
 }
+.sigpad-area { position: relative; }
 .sigpad-canvas {
+  /* Absoluto dentro del área: el tamaño intrínseco del canvas (width/height
+     en píxeles de dispositivo) no debe empujar el layout al redimensionar. */
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
+  height: 100%;
   /* touch-action: none va inline en el componente: sin él el scroll del
      contenedor roba el trazo en móvil. */
   cursor: crosshair;
 }
+.sigpad-actions { display: flex; gap: 8px; flex: none; }
+.sigpad-accept {
+  border: 1.5px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--body);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.sigpad-accept:active { transform: scale(0.96); }
+.sigpad-accept:disabled { opacity: 0.45; cursor: default; transform: none; }
+
+/* Firma a pantalla completa (portal en <body>) */
+.sigfull {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: #f3f6fa;
+  overflow: hidden;
+}
+.sigfull-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+/* Teléfono en vertical: el escenario mide alto × ancho de la pantalla y se
+   gira 90° horario desde su esquina superior izquierda, que queda en la
+   esquina superior derecha de la pantalla. Se firma con el teléfono de lado. */
+.sigfull-stage.rotated {
+  inset: auto;
+  top: 0;
+  left: 100%;
+  width: 100vh;
+  width: 100dvh;
+  height: 100vw;
+  transform-origin: top left;
+  transform: rotate(90deg);
+  padding: 10px 12px;
+}
+.sigfull-head { flex: none; }
+.sigfull-title {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sigfull-text {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.sigpad.fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+.sigpad.fill .sigpad-area { flex: 1; min-height: 0; }
 .sigpad-hint {
   position: absolute;
   top: 50%;
