@@ -136,6 +136,9 @@ services:
       KONG_DECLARATIVE_CONFIG: /kong/kong.yml
       KONG_PROXY_LISTEN: "0.0.0.0:8000"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      # Por defecto Kong abre un worker por núcleo (12 en este equipo, ~70 MB
+      # cada uno); en local 2 sobran. En producción se ajusta a la carga.
+      KONG_NGINX_WORKER_PROCESSES: ${KONG_NGINX_WORKER_PROCESSES:-2}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Define JWT_ACCESS_SECRET en el .env raiz del proyecto}
       KONG_CORS_ORIGINS: ${KONG_CORS_ORIGINS:-'["http://localhost:5173"]'}
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Define REDIS_PASSWORD en el .env raiz del proyecto}

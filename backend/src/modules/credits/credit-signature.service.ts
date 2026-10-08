@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Client } from '../clients/entities/client.entity';
+import { SigningContact } from './entities/credit.entity';
 
 export interface SignatureRequest {
   creditId: string;
-  client: Pick<Client, 'fullName' | 'email' | 'phone'> | undefined;
+  client: Pick<Client, 'fullName'> | undefined;
+  /** Contacto confirmado en el paso 3: a donde el proveedor envía los documentos. */
+  contact: SigningContact;
   documents: { id: string; code: string; name: string }[];
 }
 

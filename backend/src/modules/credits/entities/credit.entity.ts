@@ -31,6 +31,12 @@ const bigintAsNumber: ValueTransformer = {
   from: (value?: string | null) => (value == null ? null : Number(value)),
 };
 
+export interface SigningContact {
+  email: string;
+  phone: string;
+  address: string;
+}
+
 @Entity('credits')
 export class Credit extends BaseEntity {
   @Column({ name: 'company_id' })
@@ -137,6 +143,10 @@ export class Credit extends BaseEntity {
 
   @Column({ name: 'algorithm_checked_at', type: 'timestamptz', nullable: true })
   algorithmCheckedAt: Date | null;
+
+  /** Contacto confirmado en el paso 3 al enviar a firma (ver migración CreditSigningContact). */
+  @Column({ name: 'signing_contact', type: 'jsonb', nullable: true })
+  signingContact: SigningContact | null;
 
   /** Proveedor del algoritmo de scoring. Sin FK por la misma razón. */
   @Column({ name: 'vendor_id', type: 'uuid', nullable: true })

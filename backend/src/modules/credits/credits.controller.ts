@@ -20,6 +20,7 @@ import { CurrentUser } from '../../commons/decorators/current-user.decorator';
 import { IdempotencyInterceptor } from '../../commons/interceptors/idempotency.interceptor';
 import { PaginationQueryDto } from '../../commons/dto/pagination.dto';
 import { CreditsService } from './credits.service';
+import { SignCreditDto } from './dto/sign-credit.dto';
 import { StudyCreditDto } from './dto/study-credit.dto';
 import { RbacService } from '../rbac/rbac.service';
 
@@ -108,8 +109,12 @@ export class CreditsController {
   /** Paso 3: envía los documentos a firma externa → pending_signatures. */
   @Post(':id/sign')
   @Permissions('credits.study')
-  sign(@Param('id', new ParseUUIDPipe()) id: string, @CurrentTenant() companyId: string) {
-    return this.service.sign(id, companyId);
+  sign(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentTenant() companyId: string,
+    @Body() dto: SignCreditDto,
+  ) {
+    return this.service.sign(id, companyId, dto);
   }
 
   /**

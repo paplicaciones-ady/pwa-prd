@@ -3,6 +3,7 @@ import type { InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from './config';
 import { classifyError, isCanceled, type ApiError } from './apiError';
 import { reportTransportFault } from '../connectivity/reportBus';
+import { clearAuthCache } from './authCache';
 
 export const httpClient = axios.create({
   baseURL: API_BASE_URL,
@@ -139,6 +140,8 @@ httpClient.interceptors.response.use(
           refreshQueue = [];
           pending.forEach(({ reject }) => reject(refreshError));
 
+          // Sin esto, al cargar /login la caché volvería a meter al usuario.
+          clearAuthCache();
           if (!window.location.pathname.startsWith('/login')) {
             window.location.href = '/login';
           }

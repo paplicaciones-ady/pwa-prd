@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
-import { Credit, CreditStatus } from './entities/credit.entity';
+import { Credit, CreditStatus, SigningContact } from './entities/credit.entity';
 import { CreditDocument } from './entities/credit-document.entity';
 import { ClientsService } from '../clients/clients.service';
 import { clampPagination } from '../../commons/dto/pagination.dto';
@@ -369,14 +369,18 @@ export class CreditsService {
    * Paso 3: envía el pagaré y la carta de instrucciones a firmar al servicio
    * externo y deja el crédito esperando la confirmación de las firmas.
    */
-  async sign(id: string, companyId: string) {
+  async sign(id: string, companyId: string, contact: SigningContact) {
     const credit = await this.findOne(id, companyId);
     if (credit.status !== CreditStatus.PRE_APPROVED) {
       throw new BadRequestException('El crédito debe estar pre-aprobado para enviar los documentos a firma');
     }
 
     const documents = await this.dataSource.transaction(async (manager) => {
-      await manager.update(Credit, { id, companyId }, { status: CreditStatus.PENDING_SIGNATURES });
+      await manager.update(
+        Credit,
+        { id, companyId },
+        { status: CreditStatus.PENDING_SIGNATURES, signingContact: { ...contact } },
+      );
       return manager.save(
         SIGNATURE_DOCUMENTS.map((d) =>
           manager.create(CreditDocument, { companyId, creditId: id, code: d.code, name: d.name, status: 'pending' }),
@@ -387,6 +391,7 @@ export class CreditsService {
     await this.signatures.requestSignatures({
       creditId: id,
       client: credit.client,
+      contact,
       documents: documents.map((d) => ({ id: d.id, code: d.code, name: d.name })),
     });
 
