@@ -168,7 +168,7 @@ export function CreditSignPage() {
 
         <div className="field" style={{ marginBottom: 12 }}>
           <label>Dirección</label>
-          <div className="inp-row">
+          <div className="inp-row inset">
             <input
               className="inp"
               autoComplete="off"

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Modal } from './Modal';
 
 const TIPOS_VIA = ['Calle', 'Carrera', 'Diagonal', 'Transversal', 'Avenida', 'Vía', 'Autopista', 'Circunvalar', 'Pasaje'];
 const COMPLEMENTOS = ['Casa', 'Apartamento', 'Oficina', 'Local', 'Lote', 'Manzana', 'Edificio', 'Torre', 'Interior', 'Etapa', 'Conjunto', 'Urbanización'];
@@ -42,29 +43,33 @@ export function AddressBuilderModal({ onApply, onClose }: AddressBuilderModalPro
   const preview = buildPreview();
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>Construir dirección</h3>
-        <p className="modal-lead">Complete los campos de nomenclatura para construir la dirección.</p>
+    <Modal open onClose={onClose}>
+      <div className="sectitle">Construir dirección</div>
+      <p className="modal-lead">Complete los campos de nomenclatura para construir la dirección.</p>
 
+      <div className="field">
+        <label>* Tipo de vía</label>
         <div className="sel">
           <select value={tipoVia} onChange={(e) => setTipoVia(e.target.value)}>
-            <option value="">* Tipo de vía</option>
+            <option value="">Seleccione</option>
             {TIPOS_VIA.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           <svg className="cv" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </div>
+      </div>
 
-        <div className="row3">
-          <div className="field">
-            <label className="f-label">N°</label>
-            <input className="inp" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="45" />
-          </div>
-          <div className="field">
-            <label className="f-label">Letra</label>
-            <input className="inp" value={letra} onChange={(e) => setLetra(e.target.value)} placeholder="A" />
-          </div>
-          <div className="sel" style={{ marginBottom: 0 }}>
+      <div className="row3">
+        <div className="field">
+          <label>N°</label>
+          <input className="inp" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="45" />
+        </div>
+        <div className="field">
+          <label>Letra</label>
+          <input className="inp" value={letra} onChange={(e) => setLetra(e.target.value)} placeholder="A" />
+        </div>
+        <div className="field">
+          <label>Bis</label>
+          <div className="sel">
             <select value={bis} onChange={(e) => setBis(e.target.value)}>
               <option value="">—</option>
               <option value="Bis">Bis</option>
@@ -72,50 +77,53 @@ export function AddressBuilderModal({ onApply, onClose }: AddressBuilderModalPro
             <svg className="cv" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </div>
         </div>
+      </div>
 
-        <div className="row2">
-          <div className="field">
-            <label className="f-label"># Secundario</label>
-            <input className="inp" value={numero2} onChange={(e) => setNumero2(e.target.value)} placeholder="20" />
-          </div>
-          <div className="field">
-            <label className="f-label">Letra</label>
-            <input className="inp" value={letra2} onChange={(e) => setLetra2(e.target.value)} placeholder="B" />
-          </div>
+      <div className="row2">
+        <div className="field">
+          <label># Secundario</label>
+          <input className="inp" value={numero2} onChange={(e) => setNumero2(e.target.value)} placeholder="20" />
         </div>
+        <div className="field">
+          <label>Letra</label>
+          <input className="inp" value={letra2} onChange={(e) => setLetra2(e.target.value)} placeholder="B" />
+        </div>
+      </div>
 
-        <div className="row2">
-          <div className="sel" style={{ marginBottom: 0 }}>
+      <div className="row2">
+        <div className="field">
+          <label>Complemento</label>
+          <div className="sel">
             <select value={complemento} onChange={(e) => setComplemento(e.target.value)}>
-              <option value="">* Complemento</option>
+              <option value="">Ninguno</option>
               {COMPLEMENTOS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <svg className="cv" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </div>
-          <div className="field">
-            <label className="f-label">N° complemento</label>
-            <input className="inp" value={numComp} onChange={(e) => setNumComp(e.target.value)} placeholder="3" />
-          </div>
         </div>
-
         <div className="field">
-          <label className="f-label">Descripción adicional <span className="opcional">(opcional)</span></label>
-          <textarea className="inp ta" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ej: Conjunto residencial, portón verde" />
-        </div>
-
-        <div className="addr-preview-box">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><circle cx="12" cy="10" r="2.2" stroke="currentColor" strokeWidth="2" /></svg>
-          <div>
-            <div className="preview-label">Vista previa:</div>
-            <strong>{preview || 'Complete los campos para ver la dirección'}</strong>
-          </div>
-        </div>
-
-        <div className="rowbtn">
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={() => onApply(preview)}>Aplicar</button>
+          <label>N° complemento</label>
+          <input className="inp" value={numComp} onChange={(e) => setNumComp(e.target.value)} placeholder="3" />
         </div>
       </div>
-    </div>
+
+      <div className="field">
+        <label>Descripción adicional <span className="opcional">(opcional)</span></label>
+        <textarea className="inp ta" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ej: Conjunto residencial, portón verde" />
+      </div>
+
+      <div className="addr-preview-box">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><circle cx="12" cy="10" r="2.2" stroke="currentColor" strokeWidth="2" /></svg>
+        <div>
+          <div className="preview-label">Vista previa:</div>
+          <strong>{preview || 'Complete los campos para ver la dirección'}</strong>
+        </div>
+      </div>
+
+      <div className="rowbtn">
+        <button className="btn btn-ghost" type="button" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-primary" type="button" disabled={!preview} onClick={() => onApply(preview)}>Aplicar</button>
+      </div>
+    </Modal>
   );
 }

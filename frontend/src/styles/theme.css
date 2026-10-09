@@ -995,6 +995,19 @@ input, select, textarea {
   gap: 10px;
 }
 .row2 .field { flex: 1; }
+.row3 {
+  display: flex;
+  gap: 10px;
+}
+.row3 .field { flex: 1; min-width: 0; }
+.row2 .field { min-width: 0; }
+
+/* ===== Constructor de dirección (modal) ===== */
+.modal-lead {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: -4px 2px 14px;
+}
 
 /* ===== Section titles inside forms ===== */
 .sec {
@@ -1165,6 +1178,20 @@ input, select, textarea {
   gap: 8px;
 }
 .inp-row .inp { flex: 1; }
+/* Botón dentro del input: el campo conserva el ancho completo. */
+.inp-row.inset { position: relative; display: block; }
+.inp-row.inset .inp { width: 100%; padding-right: 52px; }
+.inp-row.inset .addr-btn {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border: none;
+  background: transparent;
+}
+.inp-row.inset .addr-btn:hover { background: var(--accent-soft); }
 
 /* ===== Textarea ===== */
 .inp.ta {
@@ -2201,6 +2228,8 @@ input, select, textarea {
 
 /* Consentimiento de los pasos: en móvil se alinea con el padding del contenido */
 .s2.crflow .check { margin: 0 22px 13px; }
+/* Los <input class="inp"> no tienen ancho propio: ocupan toda la columna. */
+.s2.crflow .field input.inp { width: 100%; }
 
 /* Variante 'inline' del consentimiento: el bloque va dentro del cuerpo, así que
    pierde el margen de 22px que el check del pie necesita para alinearse. */
